@@ -1,7 +1,7 @@
 class Card:
     def __init__(self, num):
         self.num = num
-        self.suit = self.ger_suit()
+        self.suit = self.ger_suit()         # 根据编号初始化花色和点数
         self.rank = self.get_rank()
 
 
@@ -34,4 +34,6 @@ class Card:
             print('Club')
         elif(self.suit == 0):
             print('Diamond')
+
+    
 
