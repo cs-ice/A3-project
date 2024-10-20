@@ -1,52 +1,54 @@
 from Card import *
 from macro import *
 @constant
-def INVALID():
+def INVALID():                          # 无效类型标识常数
     return -1
 @constant
-def SINGLE():
+def SINGLE():                           # 单牌
     return 0
 @constant
-def DOUBLE():
+def DOUBLE():                           # 对子
     return 1
 @constant
-def THREE():
+def THREE():                            # 三个
     return 2
 @constant
-def SEQ():
+def SEQ():                              # 顺子
     return 3
 @constant    
-def UNISUIT():
+def UNISUIT():                          # 同花色
     return 4
 @constant
-def THREETWO():
+def THREETWO():                         # 三带二
     return 5
 @constant
-def FOURONE():
+def FOURONE():                          # 四带一
     return 6
 @constant
-def UNISEQ():
+def UNISEQ():                           # 同花顺
     return 7
 
 
 class Cardgroup:
     def __init__(self):
         self.cards = []                         # 储存Card类卡牌
-        self.cardpoints = []
-        self.type =  INVALID                           # 0无效 1为单 2为对 3为三 5为
+        self.cardpoints = []                    # 储存点数, 为了方便后续判断type
+        self.type =  INVALID                           # -1无效 0为单 1为对 2为三 etc.
         pass
 
     def add_card(self, card):                   # 往卡组添加牌，并update类型
         self.cards.append(card)
         self.judgeType()                        # update
+        self.update_cardpoints(card.point)
 
-    def remove_card(self, card):                # 移除
+    def remove_card(self, card):                # 移除牌 并update
         if(card in self.cards):
             self.cards.remove(card)
             self.judgeType()
     
     def update_cardpoints(self, point):
-        pass
+        self.cardpoints.append(point)
+        self.cardpoints.sort()                  # 按顺序排序点数, 方便操作
 
 
     def judgeType(self):                        # 判断类型
@@ -68,6 +70,7 @@ class Cardgroup:
             self.type = INVALID
         elif(length == 5):
             pass
+    
 
 
         
