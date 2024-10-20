@@ -1,3 +1,4 @@
+from src.message import Message
 import socket
 
 class Client:
@@ -14,4 +15,10 @@ class Client:
     
     # 发送数据给服务器
     def send(self, message):
-        self.clientSocket.send(message.encode())
+        self.clientSocket.send(message)
+
+    # 接收服务器数据
+    def receive(self):
+        message = self.clientSocket.recv(1024)
+        msg = Message.deserialize(message)
+        return msg

@@ -1,32 +1,14 @@
 from Card import *
-from macro import *
-@constant
-def INVALID():                          # 无效类型标识常数
-    return -1
-@constant
-def SINGLE():                           # 单牌
-    return 0
-@constant
-def DOUBLE():                           # 对子
-    return 1
-@constant
-def THREE():                            # 三个
-    return 2
-@constant
-def SEQ():                              # 顺子
-    return 3
-@constant    
-def UNISUIT():                          # 同花色
-    return 4
-@constant
-def THREETWO():                         # 三带二
-    return 5
-@constant
-def FOURONE():                          # 四带一
-    return 6
-@constant
-def UNISEQ():                           # 同花顺
-    return 7
+INVALID = -1       # 无效
+SINGLE = 0         # 单张
+DOUBLE = 1         # 对子
+THREE = 2          # 三张
+SEQ = 3            # 顺子
+UNISUIT = 4        # 同花
+THREETWO = 5       # 三带二
+FOURONE = 6        # 四带一
+UNISEQ = 7         # 同花顺
+
 
 
 class Cardgroup:
@@ -73,14 +55,10 @@ class Cardgroup:
     
 
 
-        
 
-    
-    
-    
     def show(self):
         for i in self.cards:
-            i.show_color()
+            i.show_suit()
             i.isJQK()
 
 
