@@ -140,16 +140,16 @@ class Cardgroup:
                 element_count[elem] += 1            
             else:
                 element_count[elem] = 1             # 若否，创建键值对
-                key_lst.append(elem)
+                key_lst.append(id)                  # 保存ID
         
         if(len(key_lst) != 2):                      # 点数超过两种，肯定不是三带对
             return False
-
-        if (element_count[key_lst[0]] == 3) and (element_count[key_lst[1]] == 2):            # 重复三次，说明是三带对
-            self.deter_ID = element_count[key_lst[0]]
+        key1, key2 = get_point(key_lst[0]), get_point(key_lst[1])               # key变量是点数
+        if (element_count[key1] == 3) and (element_count[key2] == 2):            # 点数重复三次，说明是三带对
+            self.deter_ID = key_lst[0]                          
             return True
-        elif (element_count[key_lst[0]] == 2) and (element_count[key_lst[1]] == 3):            # 重复三次，说明是三带对
-            self.deter_ID = element_count[key_lst[1]]
+        elif (element_count[key1] == 2) and (element_count[key2] == 3):            # 重复三次，说明是三带对
+            self.deter_ID = key_lst[1]                                              # 决定ID为出现三次的卡牌点数
             return True
         return False        
         
@@ -162,7 +162,7 @@ class Cardgroup:
             else:
                 element_count[elem] = 1             # 
             if element_count[elem] == 4:            # 重复4次，说明是四代一
-                self.deter_ID = elem
+                self.deter_ID = id                  # 决定ID 为重复四次那张牌
                 return True
 
         return False
@@ -196,7 +196,11 @@ class Cardgroup:
         elif(length == 4):
             self.type = INVALID
         elif(length == 5):
-            if(self.isSTRAIGHT() and self.isFLUSH()):   # 先判同花顺，因为它和顺子，同花判断重合
+            '''
+            注意：这里判断同花顺，必须先判同花，因为同花的决定ID是取大牌，而同花顺侧重尾号牌
+            如黑桃34567，如果后判同花，决定ID是黑桃3，而正确ID是黑桃7
+            '''
+            if(self.isFLUSH() and self.isSTRAIGHT()):   # 先判同花顺，因为它和顺子，同花判断重合
                 self.type = FLUSHSTRAIGHT
             elif (self.isSTRAIGHT()):                     # 判断顺子
                 self.type = STRAIGHT
@@ -271,15 +275,21 @@ class Cardgroup:
             show(i)
 
 
-group = Cardgroup()
-group.add_card(0+24)
-group.add_card(0+8)
-group.add_card(0+16)
-group.add_card(0+12)
-group.add_card(0+20)
-group.judgeType()
-show(group.deter_ID)
-group.calcValue()
-group.showcard()                            # 测试代码区
 
-# updated 18点41分
+
+
+while True:
+    group = Cardgroup()
+    i = int(input('输入几张牌？'))
+    for _ in range(i):
+        group.add_card(int(input()))
+    group.judgeType()
+    print("决定牌:", end="")
+    show(group.deter_ID)
+    print()
+    group.calcValue()
+    group.showcard()                            # 测试代码区
+    print()
+        
+
+# updated 23点22分
