@@ -11,10 +11,10 @@ FLUSHSTRAIGHT = 7    # 同花顺
 
 
 def get_point(card_id): 
-    return card_id % 13            # 返回0是卡牌4， 返回12是卡牌3
+    return card_id // 4            # 返回0是卡牌4， 返回12是卡牌3
 
 def get_suit(card_id):
-    return card_id // 13           # 3spade, 2heart, 1club, 0diamond
+    return card_id %  4           # 3spade, 2heart, 1club, 0diamond
 
 def show(card_id):                  # 翻译ID成牌
     point = get_point(card_id)
@@ -124,7 +124,8 @@ class Cardgroup:
             current_point = get_point(id)
             if(current_point > prev_point):         # 如果当前点数较大，则保存ID
                 maxpoint_id = id
-            prev_point = current_point              # 将上一个点数更新为当前点数
+                prev_point = current_point              # 将上一个点数更新为当前点数
+            
             prev_suit = current_suit                # 将上一个花色更新为当前花色
 
         self.deter_ID = maxpoint_id                 # 同花决定于 花色，点数
@@ -132,16 +133,24 @@ class Cardgroup:
 
     def isTHREETWO(self):
         element_count = {}                          # 创建一个字典，点数即字典的key
+        key_lst = []                                # 保存key， 只有次数是3和2才TRUE
         for id in self.cards:
             elem = get_point(id)                    # 元素即点数
             if elem in element_count:               # 若该元素已存在key，则递增1
                 element_count[elem] += 1            
             else:
                 element_count[elem] = 1             # 若否，创建键值对
-            if element_count[elem] == 3:            # 重复三次，说明是三带对
-                self.deter_ID = elem
-                return True
+                key_lst.append(elem)
+        
+        if(len(key_lst) != 2):                      # 点数超过两种，肯定不是三带对
+            return False
 
+        if (element_count[key_lst[0]] == 3) and (element_count[key_lst[1]] == 2):            # 重复三次，说明是三带对
+            self.deter_ID = element_count[key_lst[0]]
+            return True
+        elif (element_count[key_lst[0]] == 2) and (element_count[key_lst[1]] == 3):            # 重复三次，说明是三带对
+            self.deter_ID = element_count[key_lst[1]]
+            return True
         return False        
         
     def isFOURONE(self):
@@ -165,6 +174,7 @@ class Cardgroup:
         返回值: 无, 但是会改变self.type的值
         实现: 先判断长度, 在判具体类型
         '''
+    
     def judgeType(self):                        # 判断类型
         length = len(self.cards)
 
@@ -198,6 +208,8 @@ class Cardgroup:
                 self.type = THREETWO
             else:
                 self.type = INVALID
+        else:
+            self.type = INVALID
     '''
     calcValue()
     作用: 在已知type后, 计算牌组的分数
@@ -234,22 +246,40 @@ class Cardgroup:
         elif(self.type == FLUSHSTRAIGHT):   
             pass
         
-        print(sum)
-    def show(self):
-        pass
+        # print(sum)
 
+    def showcard(self):
+        if self.type == INVALID:
+            print('INVALID')
+        elif self.type == SINGLE:
+            print('单牌')
+        elif self.type == DOUBLE:
+            print('对子')
+        elif self.type == THREE:
+            print('三张')
+        elif self.type == STRAIGHT:
+            print('顺子')        
+        elif self.type == FLUSH:
+            print('同花')
+        elif self.type == FOURONE:
+            print('四带一')
+        elif self.type == THREETWO:
+            print('三带对')
+        elif self.type == FLUSHSTRAIGHT:
+            print('同花顺')
+        for i in self.cards:
+            show(i)
 
 
 group = Cardgroup()
-group.add_card(45-13)
-group.add_card(46)
-group.add_card(47)
-group.add_card(48)
-group.add_card(49)
+group.add_card(0+24)
+group.add_card(0+8)
+group.add_card(0+16)
+group.add_card(0+12)
+group.add_card(0+20)
 group.judgeType()
-if group.type == 3:
-    print('顺子')
 show(group.deter_ID)
 group.calcValue()
-for i in range(5):
-    print(get_point(group.cards[i])+4, end=' ')
+group.showcard()                            # 测试代码区
+
+# updated 18点41分
