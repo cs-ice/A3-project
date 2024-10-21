@@ -23,6 +23,9 @@ class Cardgroup:
         self.judgeType()                        # update
         self.update_cardpoints(card.point)
 
+    def sort(self):                             # 排序 一般用于手牌 依据card的num降序排序
+        self.cards.sort(key=lambda x: x.num, reverse=True)
+
     def remove_card(self, card):                # 移除牌 并update
         if(card in self.cards):
             self.cards.remove(card)
