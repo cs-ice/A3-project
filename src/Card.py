@@ -36,4 +36,6 @@ class Card:
             print('Diamond')
 
     
-
+c = Card(0)
+c.show_suit()
+c.isJQK()
