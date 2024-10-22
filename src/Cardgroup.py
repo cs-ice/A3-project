@@ -46,11 +46,12 @@ INVALID = -1         # 无效
 SINGLE = 0           # 单张
 DOUBLE = 1           # 对子
 THREE = 2            # 三张
-STRAIGHT = 3         # 顺子
-FLUSH = 4            # 同花
-THREETWO = 5         # 三带二
-FOURONE = 6          # 四带一
-FLUSHSTRAIGHT = 7    # 同花顺
+FOUR = 3             # 四张
+STRAIGHT = 4         # 顺子
+FLUSH = 5            # 同花
+THREETWO = 6         # 三带二
+FOURONE = 7          # 四带一
+FLUSHSTRAIGHT = 8    # 同花顺
 
 
 def get_point(card_id): 
@@ -87,10 +88,10 @@ def show(card_id):                  # 翻译ID成牌
     
 '''
 卡组类需要实现的功能
-1.储存一组牌，通过储存牌的ID列表实现
+1.储存一组牌 通过储存牌的ID列表实现
 2.通过ID获取牌的点数与花色
-3.能够添加，删除牌。同时判断此时的牌组类型
-4.若是有效类型，计算它的value
+3.能够添加 删除牌。同时判断此时的牌组类型
+4.若是有效类型 计算它的value
 
 '''
 
@@ -109,7 +110,7 @@ class Cardgroup:
 
 
     def sort(self):                                # 排序 一般用于手牌 依据card的num降序排序
-        self.cards.sort(key=lambda x: x.num, reverse=True)
+        self.cards.sort(reverse=True)
 
     def remove_card(self, card):                   # 移除牌 并update
         if(card in self.cards):
@@ -118,9 +119,9 @@ class Cardgroup:
     
 
         '''
-        不接受参数，使用到self.cards列表，不改变列表
+        不接受参数 使用到self.cards列表 不改变列表
         返回值：布尔类型
-        作用：判断self.cards储存的是否是顺子
+        作用 判断self.cards储存的是否是顺子
         '''
     def isSTRAIGHT(self):   
         temp_points = []                            # 临时列表 储存一组点数
@@ -209,13 +210,13 @@ class Cardgroup:
 
         return False
 
-        '''
-        judgeType()
-        功能：判断当前牌组(self.cards)的类型, 同时获取决定性ID
-        参数: 无, 需要使用self.cards, 不会改变列表
-        返回值: 无, 但是会改变self.type, self.deter_ID的值
-        实现: 先判断长度, 在判具体类型
-        '''
+    '''
+    judgeType()
+    功能：判断当前牌组(self.cards)的类型, 同时获取决定性ID
+    参数: 无, 需要使用self.cards, 不会改变列表
+    返回值: 无, 但是会改变self.type, self.deter_ID的值
+    实现: 先判断长度, 在判具体类型
+    '''
     def judgeType(self):                                                    # 判断类型 同时取得决定性ID以算取value
         length = len(self.cards)
         self.type = INVALID
@@ -241,11 +242,16 @@ class Cardgroup:
             else:
                 self.type = INVALID
         elif(length == 4):
-            self.type = INVALID
+            temp = get_point(self.cards[0])
+            for i in range(1, 4):
+                if(get_point(self.cards[i]) != temp):
+                    self.type = INVALID
+                    return
+            self.type = FOUR
         elif(length == 5):
             '''
-            注意：这里判断同花顺，必须先判同花，因为同花的决定ID是取大牌，而同花顺侧重尾号牌
-            如黑桃34567，如果后判同花，决定ID是黑桃3，而正确ID是黑桃7
+            注意 这里判断同花顺 必须先判同花 因为同花的决定ID是取大牌 而同花顺侧重尾号牌
+            如黑桃34567 如果后判同花 决定ID是黑桃3 而正确ID是黑桃7
             '''
             if(self.isFLUSH() and self.isSTRAIGHT()):   # 先判同花顺，因为它和顺子，同花判断重合
                 self.type = FLUSHSTRAIGHT
