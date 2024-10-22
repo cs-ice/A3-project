@@ -47,6 +47,7 @@ SINGLE = 0           # 单张
 DOUBLE = 1           # 对子
 THREE = 2            # 三张
 FOUR = 3             # 四张
+
 STRAIGHT = 4         # 顺子
 FLUSH = 5            # 同花
 THREETWO = 6         # 三带二

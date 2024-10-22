@@ -49,4 +49,4 @@ class Client:
     
     def rev_handcard(self, message):
         for i in message.content:
-            self.handcard.add_card(Card(i))
+            self.handcard.add_card(i)
