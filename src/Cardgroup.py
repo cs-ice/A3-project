@@ -116,6 +116,7 @@ class Cardgroup:
         if(card in self.cards):
             self.cards.remove(card)
             self.judgeType()
+            self.calcValue()
     
 
         '''
@@ -156,7 +157,7 @@ class Cardgroup:
     def isFLUSH(self):
         prev_suit = get_suit(self.cards[0])         # 先初始化为第一张牌的花色
         current_suit = get_suit(self.cards[0])      
-        maxpoint_id = 0                             # 记录最大点数对应的ID，以求它的花色
+        maxpoint_id = -1                            # 记录最大点数对应的ID，以求它的花色
         prev_point = -1
         current_point = -1                          # 这两者都是临时变量，分别是上一个和当前点数
         for id in self.cards:
@@ -167,7 +168,7 @@ class Cardgroup:
             current_point = get_point(id)
             if(current_point > prev_point):         # 如果当前点数较大，则保存ID
                 maxpoint_id = id
-                prev_point = current_point          # 将上一个点数更新为当前点数
+                prev_point = current_point          # 将上一个点数更新为当前最大点数
             
             prev_suit = current_suit                # 将上一个花色更新为当前花色
 
@@ -238,7 +239,7 @@ class Cardgroup:
             p3 = get_point(self.cards[2])
             if((p1 == p2) and (p1 == p3)):
                 self.type = THREE
-                self.deter_ID = p1
+                self.deter_ID = self.cards[0]                               # 三张的决定性ID 由于不判花色 默认取第一张的ID
             else:
                 self.type = INVALID
         elif(length == 4):
@@ -248,11 +249,13 @@ class Cardgroup:
                     self.type = INVALID
                     return
             self.type = FOUR
-            self.deter_ID = get_point(self.cards[0])
+            self.deter_ID = self.cards[0]                                   # 四张的决定性ID 由于不判花色 默认取第一张的ID
         elif(length == 5):
             '''
             注意 这里判断同花顺 必须先判同花 因为同花的决定ID是取大牌 而同花顺侧重尾号牌
             如黑桃34567 如果后判同花 决定ID是黑桃3 而正确ID是黑桃7
+
+            注 决定ID已经在is__方法中取得
             '''
             if(self.isFLUSH() and self.isSTRAIGHT()):   # 先判同花顺，因为它和顺子，同花判断重合
                 self.type = FLUSHSTRAIGHT
@@ -277,7 +280,7 @@ class Cardgroup:
     '''
     def calcValue(self):                    # 为了代码的一致性，self.value是由scores赋值的 所以请修改scores
         scores = 0
-        point = get_point(self.deter_ID)
+        point = get_point(self.deter_ID)    # 分别获取决定ID的花色和点数
         suit = get_suit(self.deter_ID)
         if(self.type == INVALID):
             scores = -1                     # 无效类型 分数是-1
@@ -287,10 +290,10 @@ class Cardgroup:
             scores = self.deter_ID          # 对子即取大的ID，因为大的ID对应大的花色
         elif(self.type == THREE):                                           
             scores = self.deter_ID          # 三张同理   
-        elif(self.type == FOUR):            # 四张同理
-            scores = self.deter_ID
-        elif(self.type == STRAIGHT):        # # 因为34567最小，所以方片7(id 12)为1分
-            scores = self.deter_ID          # 取决于ID 那VALUE就是ID
+        elif(self.type == FOUR):            
+            scores = self.deter_ID          # 四张同理
+        elif(self.type == STRAIGHT):        
+            scores = self.deter_ID          # 取决于deter_ID 那VALUE就是ID  
 
         elif(self.type == FLUSH):           # 从方片到梅花, 分数加13, 方片9为最低分1分
             while (suit > 0):
@@ -304,8 +307,8 @@ class Cardgroup:
             scores = get_point(self.deter_ID) + 1
         elif(self.type == FOURONE):         # 四带一同理
             scores = get_point(self.deter_ID) + 1
-        elif(self.type == FLUSHSTRAIGHT):   
-            pass
+        elif(self.type == FLUSHSTRAIGHT):   # 同花顺和顺子的判断是一模一样的
+            scores = self.deter_ID
         
         self.value = scores
         # print(scores)
@@ -319,6 +322,8 @@ class Cardgroup:
             print('对子')
         elif self.type == THREE:
             print('三张')
+        elif self.type == FOUR:
+            print('四张')
         elif self.type == STRAIGHT:
             print('顺子')        
         elif self.type == FLUSH:
