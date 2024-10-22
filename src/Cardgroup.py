@@ -1,3 +1,46 @@
+'''
+===========================================DOCUMENTATION====================================================
+
+Cardgroup类
+类属性: 1. Cardgroup.cards     一个int列表, 保存一组牌
+        2.Cardgroup.type      该卡组的类型
+        3.Cardgroup.deter_ID  决定性ID, 主要通过它比较牌组的大小
+        4.Cardgroup.value     牌组分数, 只有在类型相同时, 直接通过它比较牌组的大小
+
+类方法:  1.Cardgroup.add_card(card_id)    
+        该方法需要一个int类型参数, 参数即卡牌的ID
+        该方法往卡组(Cardgroup)添加一张卡牌, 并更新卡组类型(Cardgroup.type)以及计算分数(Cardgroup.value)
+       
+        2.Cardgroup.remove_card(card_id)
+        该方法需要一个int类型参数, 参数即卡牌的ID
+        该方法将卡组(Cardgroup)移除一张特定卡牌, 并更新卡组类型(Cardgroup.type)以及计算分数(Cardgroup.value)
+    
+        3.Cardgroup.judgeType()
+        该方法无需参数 直接根据当前卡组(Cardgroup.cards)判断出卡组类型(Cardgroup.type), 结果直接保存到Cardgroup.type
+        同时, 该方法也传递出当前卡组的决定性因素, 并保存在Cardgroup.deter_ID中
+
+        4.Cardgroup.calcValue()
+        该方法无需参数, 根据当前卡组的类型(Cardgroup.type)和卡组的决定性因素(Cardgroup.deter_ID)计算出卡组的分数, 
+        并保存在Cardgroup.value中.
+
+        5.Cardgroup.showcard()
+        该方法在控制台展示保存在卡组中的牌及类型
+
+        6.各种判断牌类型的方法
+
+
+全局函数:
+        1.get_point(card_id)
+        需要一个牌的ID, 返回该牌的点数
+        
+        2.get_suit(card_id)
+        需要一个牌的ID, 返回该牌的花色
+
+        3.show(card_id)
+        需要一个牌的ID, 在控制台打印该牌
+
+
+'''
 
 INVALID = -1         # 无效
 SINGLE = 0           # 单张
