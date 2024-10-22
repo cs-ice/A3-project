@@ -307,8 +307,8 @@ class Cardgroup:
             scores = get_point(self.deter_ID) + 1
         elif(self.type == FOURONE):         # 四带一同理
             scores = get_point(self.deter_ID) + 1
-        elif(self.type == FLUSHSTRAIGHT):   # 同花顺和顺子的判断是一模一样的
-            scores = self.deter_ID
+        elif(self.type == FLUSHSTRAIGHT):   # 同花顺比较特殊 决定ID取尾号牌 但分数计算取同花算法
+            scores = suit * 13 + point      # 花色*13 + 点数 
         
         self.value = scores
         # print(scores)
