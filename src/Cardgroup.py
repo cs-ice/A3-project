@@ -349,15 +349,32 @@ while True:
     print('Value:', str(group.value))
     group.showcard()                            # 测试代码区 """
     # print()
+
+
 group = Cardgroup()
-arr = [9, 51,50, 8, 11,]
-for i in arr:
-    group.add_card(i)
-print("决定牌:", end="")
-show(group.deter_ID)
-print()
-print('Value:', group.value)
-group.showcard() 
+while True:
+    input_str = input("输入操作 (例如: 'add 0 3' 或 'remove 1 10' 或 'exit'): ").split()
+    command = input_str[0]
+
+    if command == 'add' and len(input_str) == 3:
+        card_suit = int(input_str[1])
+        card_point = int(input_str[2])
+        card_id = ((card_point + 9) % 13) * 4 + card_suit
+        group.add_card(card_id)
+    elif command == 'remove' and len(input_str) == 3:
+        card_suit = int(input_str[1])
+        card_point = int(input_str[2])
+        card_id = ((card_point + 9) % 13) * 4 + card_suit
+        group.remove_card(card_id)
+    elif command == 'exit':
+        break
+
+    print("当前牌组信息如下:")
+    print("决定牌:", end="")
+    show(group.deter_ID)
+    print('Value:', group.value)
+    group.showcard()
+
 
 
 # updated 2024年10月22日12点58分
