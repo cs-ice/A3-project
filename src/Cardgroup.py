@@ -238,7 +238,7 @@ class Cardgroup:
             p3 = get_point(self.cards[2])
             if((p1 == p2) and (p1 == p3)):
                 self.type = THREE
-                self.deter_ID = max(self.cards[0], self.cards[1], self.cards[2])
+                self.deter_ID = p1
             else:
                 self.type = INVALID
         elif(length == 4):
@@ -248,6 +248,7 @@ class Cardgroup:
                     self.type = INVALID
                     return
             self.type = FOUR
+            self.deter_ID = get_point(self.cards[0])
         elif(length == 5):
             '''
             注意 这里判断同花顺 必须先判同花 因为同花的决定ID是取大牌 而同花顺侧重尾号牌
@@ -286,6 +287,8 @@ class Cardgroup:
             scores = self.deter_ID          # 对子即取大的ID，因为大的ID对应大的花色
         elif(self.type == THREE):                                           
             scores = self.deter_ID          # 三张同理   
+        elif(self.type == FOUR):            # 四张同理
+            scores = self.deter_ID
         elif(self.type == STRAIGHT):        # # 因为34567最小，所以方片7(id 12)为1分
             scores = self.deter_ID          # 取决于ID 那VALUE就是ID
 
