@@ -59,7 +59,7 @@ def get_point(card_id):
     return card_id // 4            # 返回0是卡牌4， 返回12是卡牌3
 
 def get_suit(card_id):
-    return card_id %  4           # 3spade, 2heart, 1club, 0diamond
+    return card_id %  4            # 3spade, 2heart, 1club, 0diamond
 
 def show(card_id):                  # 翻译ID成牌
     point = get_point(card_id)
@@ -118,6 +118,19 @@ class Cardgroup:
             self.cards.remove(card)
             self.judgeType()
             self.calcValue()
+
+    '''
+        传入另一个Cardgroup 判断本身是否包含这个cg
+        考虑到卡牌ID是唯一的 使用python内置的set来实现
+    '''
+    def contain(self, cg: Cardgroup) -> bool:     
+        # 简便实现 不考虑变成set后长度变短问题 因为不可能有一模一样的牌的
+        return set(cg.cards).issubset(set(self.cards))
+
+    
+    def remove_cg(self, sub_cg):
+        pass
+    
     
 
         '''
