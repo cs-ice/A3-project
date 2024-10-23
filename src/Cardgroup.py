@@ -59,7 +59,21 @@ def get_point(card_id):
     return card_id // 4            # 返回0是卡牌4， 返回12是卡牌3
 
 def get_suit(card_id):
-    return card_id %  4            # 3spade, 2heart, 1club, 0diamond
+    return card_id %  4           # 3spade, 2heart, 1club, 0diamond
+
+def create_cardgroup(card_lst) -> Cardgroup:     # 一个构造函数 给定一个列表返回一个Cg对象
+    cg = Cardgroup()
+    for id in card_lst:
+        cg.add_card(id)
+    return cg
+
+def create_cardgroup_by_tuple(card_tuple_lst):   # 给一个元组(花色, 点数)列表 返回一个Cg对象
+    cg = Cardgroup()
+    for i in card_tuple_lst:
+        card_suit, card_point = i
+        card_id = ((card_point + 9) % 13) * 4 + card_suit
+        cg.add_card(card_id)
+    return cg
 
 def show(card_id):                  # 翻译ID成牌
     point = get_point(card_id)
@@ -118,7 +132,6 @@ class Cardgroup:
             self.cards.remove(card)
             self.judgeType()
             self.calcValue()
-
     '''
         传入另一个Cardgroup 判断本身是否包含这个cg
         考虑到卡牌ID是唯一的 使用python内置的set来实现
@@ -130,8 +143,6 @@ class Cardgroup:
     
     def remove_cg(self, sub_cg):
         pass
-    
-    
 
         '''
         不接受参数 使用到self.cards列表 不改变列表
