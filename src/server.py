@@ -32,12 +32,15 @@ class Server:
         self.time_limit = 30                        # 时间限制
 
         self.currentPlayer = -1                     # 当前玩家
-        self.last_play = []                         #上次出的牌
+        self.last_player = -1                       # 上一个出牌的玩家
+        self.last_play = []                         # 上次出的牌
         self.group_black = []                       # 黑桃3和黑桃A
         self.group_red = []                         # 其余
         self.black_over = []                        # 黑桃出完牌的玩家
         self.red_over = []                          # 其余出完牌的玩家
+        self.win_order = []                         # 胜利顺序
         self.score = [0,0,0,0]                      # 积分
+        self.over = False                           # 游戏结束标志
 
         # 注意A3没有大小王
         # 0是方片4 1是梅花4 51是黑桃3 依次类推
@@ -73,8 +76,15 @@ class Server:
         clientSocket.send(Message('id', player_id).serialize())
         # 到时候客户端需要写一个输入用户名的界面
         username = clientSocket.recv(1024).decode('utf-8').strip()
+        # 如果玩家id已经有用户名了 重新输入
+        while username in self.usernames.values():
+            clientSocket.send(Message('rename', -1).serialize())
+            username = clientSocket.recv(1024).decode('utf-8').strip()
         self.usernames[player_id] = username
         self.clients[player_id] = clientSocket
+        # 向新玩家发送当前房间信息
+        pass
+
         # 广播新玩家加入 客户端到时候需要根据这个信息更新界面
         self.broadcast(Message('newplayer', [player_id, username]).serialize())
 
@@ -87,7 +97,14 @@ class Server:
                 msg = Message.deserialize(message)
                 if msg.type == 'play':
                     # 出牌功能
-                    self.receive_play(player_id, msg.content)
+                    # 只有当前玩家才能出牌
+                    if self.currplayer == player_id:
+                        self.receive_play(player_id, msg.content)
+                    # 不是当前玩家 忽略请求
+                    else:
+                        continue
+                elif msg.type == 'pass':
+                    pass
                 elif msg.type == 'chat':
                     # 聊天功能
                     self.receive_chat(player_id, msg.content)
@@ -116,11 +133,13 @@ class Server:
         random.shuffle(self.cards)
         for player_id in range(4):
             # 玩家手牌 顺便排序
-            playercards = sorted(self.cards[i*13:(i+1)*13])
+            playercards = sorted(self.cards[player_id*13:(player_id+1)*13])
             if 0 in playercards:# 方片4
                 self.currentPlayer = player_id
+                self.last_player = player_id
             if 51 in playercards:# 黑桃3
                 self.group_black.append(player_id)
+            #这个elif可以防止黑桃3和黑桃A是同一个人的时候把同一个人加到黑队里面两次
             elif 49 in playercards:# 黑桃A
                 self.group_black.append(player_id)
             else:
@@ -128,9 +147,19 @@ class Server:
             self.carddict[player_id] = playercards#服务器需要同步玩家手牌
             self.clients[player_id].send(Message('handcard', playercards).serialize())
     
+    # 广播等待玩家
+
+    # 给新玩家发送当前房间信息
+
+    # 广播新玩家加入
+
+    # 广播游戏开始
+
     # 广播当前出牌权以及上一次出的牌
     def broadcast_current(self):
         self.broadcast(Message('current', [self.currentPlayer, self.last_play]).serialize())
+
+    # 广播聊天信息
 
     # 处理出牌信息
     def receive_play(self, player_id:int, cardg:Cardgroup):
@@ -157,16 +186,127 @@ class Server:
         self.force_play(self.currentPlayer)
         self.next_turn()
     
+    # 下一个玩家出牌
+    # 当更新完上一次出牌以及新的手牌之后调用
     def next_turn(self):
         self.timer.cancel()
         self.currentPlayer = (self.currentPlayer + 1) % 4
         self.broadcast_current()
         self.start_trun()
 
-    def check_over(self, player_id:int):
-        pass
+    # 输入出完牌的玩家id 判断游戏是否结束
+    def check_over(self, player_id:int) -> bool:
+        # 胜利顺序用来计算积分
+        self.win_order.append(player_id)
+        if player_id in self.group_black:
+            self.black_over.append(player_id)
+        else:
+            self.red_over.append(player_id)
+        if len(self.black_over) == len(self.group_black) or len(self.red_over) == len(self.group_red):
+            # 当进入这个if语句 一定是游戏结束的情况
+            self.game_over()
+            return True
+        return False
     
+    # 根据游戏结束时的情况判断胜利方 计算积分
+    def game_over(self):
+        # 游戏结束的各种情况
+        # 1.正常的2对2
+        if len(self.group_black) == 2 and len(self.group_red) == 2:
+            #1,2对3,4的局面
+            # 黑赢
+            if(self.win_order[0] in self.group_black and self.win_order[1] in self.group_black):
+                self.score[self.group_black[0]] += 2
+                self.score[self.group_black[1]] += 2
+                self.score[self.group_red[0]] -= 2
+                self.score[self.group_red[1]] -= 2
+                self.over = True
+                return
+            # 红赢
+            elif(self.win_order[0] in self.group_red and self.win_order[1] in self.group_red):
+                self.score[self.group_red[0]] += 2
+                self.score[self.group_red[1]] += 2
+                self.score[self.group_black[0]] -= 2
+                self.score[self.group_black[1]] -= 2
+                self.over = True
+                return
+            # 黑红混合 这时候win_order的长度至少为3
+            # 黑红黑 win_order[1]不用判断 因为前面已经判断过了
+            elif(self.win_order[0] in self.group_black and self.win_order[2] in self.group_black):
+                self.score[self.group_black[0]] += 1
+                self.score[self.group_black[1]] += 1
+                self.score[self.group_red[0]] -= 1
+                self.score[self.group_red[1]] -= 1
+                self.over = True
+                return
+            # 红黑红
+            elif(self.win_order[0] in self.group_red and self.win_order[2] in self.group_red):
+                self.score[self.group_red[0]] += 1
+                self.score[self.group_red[1]] += 1
+                self.score[self.group_black[0]] -= 1
+                self.score[self.group_black[1]] -= 1
+                self.over = True
+                return
+            # 平局 积分不变
+            else:
+                self.over = True
+                return
+        # 2.黑桃三和黑桃A是同一个人(独狼)的情况
+        elif len(self.group_black) == 1 and len(self.group_red) == 3:
+            # 黑是第一个赢的 +3 -1 -1 -1
+            if(self.win_order[0] in self.group_black):
+                self.score[self.group_black[0]] += 3
+                for i in self.group_red:
+                    self.score[i] -= 1
+                self.over = True
+                return
+            # 黑是第二个赢的 0 +2 -1 -1
+            elif(self.win_order[1] in self.group_black):
+                self.score[self.group_black[0]] += 2
+                red_win = self.win_order[0]
+                for i in self.group_red:
+                    if i != red_win:
+                        self.score[i] -= 1
+                self.over = True
+                return
+            # 黑是第三个赢的 +1 +1 -2 0
+            elif(self.win_order[2] in self.group_black):
+                self.score[self.group_black[0]] -= 2
+                self.score[self.win_order[0]] += 1
+                self.score[self.win_order[1]] += 1
+                self.over = True
+                return
+            # 黑是最后一个赢的 +1 +1 +1 -3
+            elif(self.win_order[3] in self.group_black):
+                self.score[self.group_black[0]] -= 3
+                for i in self.group_red:
+                    self.score[i] += 1
+                self.over = True
+                return
+            # 实际上不会出现这种情况
+            else:
+                self.over = True
+                return
+        # 实际上也不会出现这种情况
+        else:
+            self.over = True
+            return
 
+    # 输入玩家id 强制其出牌
+    def force_play(self, player_id:int):
+        # 强制出牌有两种情况
+        # 1.如果上一次出牌的是自己 那么可以随便出牌 默认出最小的一张牌
+        if self.currentPlayer == player_id:
+            self.carddict[player_id].sort()
+            self.last_play = [self.carddict[player_id][0]]
+            self.carddict[player_id] = self.carddict[player_id][1:]
+            self.next_turn()
+        # 2.如果上一次出牌的不是自己 那么默认不出牌
+        else:
+            # 这里不能写self.last_play = []
+            # 因为这样会导致下一个玩家出牌的时候判断出牌是否符合逻辑的时候出错
+            # 只需要开始下一个玩家的计时器即可
+            self.next_turn()
 
     #游戏主循环
     def game_start(self):

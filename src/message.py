@@ -1,5 +1,20 @@
 import json
 
+'''
+服务端发送给客户端的消息类型以及内容需要按下面的格式打包
+1."id"              content为int        客户端的id(int)
+2."rename"          content无意义       用-1代替
+3."wait"            content无意义       用-1代替
+4."new_player"      content为lst        [id(int)以及名字(str)]
+5."start"           content无意义       用-1代替
+6."play"
+
+客户端发送给服务端的消息需要按下面的格式打包
+
+
+
+'''
+
 class Message:
     def __init__(self, type, content):
         self.type = type
