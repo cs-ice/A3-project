@@ -3,13 +3,20 @@ import json
 '''
 服务端发送给客户端的消息类型以及内容需要按下面的格式打包
 1."id"              content为int        客户端的id(int)
-2."rename"          content无意义       用-1代替
+2."rename"          content无意义       名字重复 用-1代替
+3."reroom_id"       content无意义       重新输入房间号 用-1代替
 3."wait"            content无意义       用-1代替
 4."new_player"      content为lst        [id(int)以及名字(str)]
-5."start"           content无意义       用-1代替
-6."play"
+5."ready_lst"       content为lst        已准备的玩家列表[id(int)]
+6."start"           content无意义       用-1代替
+7."curr"            content为lst        当前出牌的信息[当前有出牌权的玩家(int) 上一个出牌权的人出的牌(lst)]
+9."over"            content为lst        [该客户端是否胜利[bool] 所有玩家得分结果[int]]
 
 客户端发送给服务端的消息需要按下面的格式打包
+1."roomAndName"     content为lst        [房间号(int) 用户名(str)]        
+2."ready"           content为bool       发送一个content为true的信号 表示准备
+3."play"            content为lst        客户端打出的牌 为int的列表
+4."chat"            content为str        客户端发送的信息
 
 
 
