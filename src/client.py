@@ -1,5 +1,5 @@
 from Cardgroup import *
-from src.message import Message
+from message import Message
 import socket
 import threading
 
@@ -25,28 +25,73 @@ class Client:
         self.pickcard = Cardgroup()     # 选中的牌
         self.ableto_play = False        # 是否可以出牌
         self.last_play = Cardgroup()    # 上一次出的牌
+        self.receive_lock = threading.Lock()
 
     # 连接服务器
-    def connect(self):
-        serverIP = "8.217.57.241"
+    def connect_to_room(self):
+        #serverIP = "8.217.57.241"       # 服务器ip地址
+        serverIP = "172.27.130.221"     # 测试用本地ip
         serverPort = 12345
         self.clientSocket.connect((serverIP, serverPort))
-        threading.Thread(target=self.receive).start()
+        
+        # 输入房间号和用户名
+        room_id = input("请输入房间号: ")
+        username = input("请输入用户名: ")
+        self.clientSocket.send(Message("roomAndName", [int(room_id), username]).serialize())
+        msg = Message.deserialize(self.clientSocket.recv(1024))
+        while msg is None or msg.type == "rename" or msg.type == "reroom_id":
+            if msg is None:
+                continue
+            if msg.type == "rename":
+                print("用户名重复, 请重新输入")
+            else:
+                print("房间已满或不存在, 请重新输入")
+            room_id = input("请输入房间号: ")
+            username = input("请输入用户名: ")
+            self.clientSocket.send(Message("roomAndName", [int(room_id), username]).serialize())
+            msg = Message.deserialize(self.clientSocket.recv(1024))
+        print("成功进入房间")
+        threading.Thread(target=self.receive, args=(msg,)).start()
     
-    # 发送数据给服务器
-    def send(self, message):
-        self.clientSocket.send(message)
-
     # 接收服务器数据
-    def receive(self):
+    def receive(self, start_message: Message):
         while True:
             message = self.clientSocket.recv(1024)
             msg = Message.deserialize(message)
-            if msg.type == 'handcard':
+            if msg is None:
+                continue
+            if msg.type == "id":
+                self.player_id = msg.content
+                print("你的id是: ", self.player_id)
+            elif msg.type == "room_info":
+                print("当前房间内的玩家有: ", msg.content)
+            elif msg.type == "new_player":
+                self.rev_new_player(msg)
+            elif msg.type == "handcard":
                 self.rev_handcard(msg)
             pass
-
     
-    def rev_handcard(self, message):
+    # 发送数据给服务器
+    def sendmsg(self, message: Message):
+        self.clientSocket.send(message.serialize())
+
+    # 处理服务器发来的新玩家信息
+    def rev_new_player(self, message: Message):
+        print("新玩家加入, 他的id是:", message.content[0], "他的名字是:", message.content[1])
+        pass
+    
+    def rev_handcard(self, message: Message):
         for i in message.content:
             self.handcard.add_card(i)
+        print("你的手牌是: ", self.handcard.cards)
+
+    # 测试代码
+    def test(self):
+        pass
+
+
+
+if __name__ == '__main__':
+    client = Client()
+    client.connect_to_room()
+    

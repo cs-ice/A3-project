@@ -380,7 +380,7 @@ while True:
     group.showcard()                            # 测试代码区 """
     # print()
 
-
+'''
 group = Cardgroup()
 while True:
     input_str = input("输入操作 (例如: 'add 0 3' 或 'remove 1 10' 或 'exit'): ").split()
@@ -404,5 +404,5 @@ while True:
     show(group.deter_ID)
     print('Value:', group.value)
     group.showcard()
-
+'''
 # updated 2024年10月23日13点28分

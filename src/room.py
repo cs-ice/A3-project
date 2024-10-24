@@ -1,6 +1,6 @@
-from src.message import Message
-from src.Cardgroup import Cardgroup
-from src.game_logic import *
+from message import Message, MessagePool
+from Cardgroup import Cardgroup
+from game_logic import *
 import socket
 import threading
 import random
@@ -44,15 +44,20 @@ class Room:
         self.over = False                                               # 游戏结束
         self.time_limit = 30                                            # 出牌时间限制
         self.timer = None                                               # 计时器
+        self.message_pool = MessagePool()                               # 消息池
         self.lock = threading.Lock()                                    # 锁
 
 
 
     def work(self):
+        print("房间已启动")
+        threading.Thread(target=self.process_send_message).start()
         while True:
             if self.is_full():
+                print("房间已满,开始发牌")
                 self.deal()
                 break
+
 
     def is_full(self):
         return len(self.player_sockets) == 4
@@ -63,28 +68,28 @@ class Room:
             self.i += 1
             self.player_sockets[self.i] = clientSocket
             self.usernames[self.i] = username
-        threading.Thread(target=self.handle, args=(clientSocket, self.i)).start()
+        threading.Thread(target=self.handle, args=(self.i,)).start()
 
     # 接受客户端消息
-    def handle(self, clientSocket:socket.socket, player_id:int):
+    def handle(self, player_id:int):
+        clientSocket = self.player_sockets[player_id]
         # 发送玩家id
-        clientSocket.send(Message('id', player_id).serialize())
+        self.send_client_message(player_id, Message('id', player_id))
 
         # 向新玩家发送当前房间信息
-        current_players = [(pid, username) for pid, username in self.usernames.items()]
-        clientSocket.send(Message('room_info', current_players).serialize())
+        current_players = self.usernames
+        self.send_client_message(player_id, Message('room_info', current_players))
 
         # 广播新玩家加入 客户端到时候需要根据这个信息更新界面
-        self.broadcast(Message('newplayer', [player_id, self.usernames[player_id]]).serialize())
+        self.broadcast_message(Message('new_player', [player_id, self.usernames[player_id]]))
 
         # 接收消息
         while True:
             try:
-                message = clientSocket.recv(1024)
-                if not message:
+                msg = Message.deserialize(clientSocket.recv(1024))
+                if not msg:
                     self.remove_player(player_id)
                     break
-                msg = Message.deserialize(message)
                 if msg.type == 'play':
                     # 出牌功能
                     # 只有当前玩家才能出牌
@@ -114,16 +119,31 @@ class Room:
         # 由于这个函数会在多个函数中调用 所以要判断是否已经移除
         pass
 
-    # 广播消息
-    def broadcast(self, message:Message):
-        for pid, client in self.player_sockets.items():
-            try:
-                client.send(message)
-            except Exception as e:
-                print(f'Failed to send message to client, {e}')
-                self.remove_player(pid)
-        return
     
+    #region 消息处理 其他函数想要发送消息都要调用brodcast_message或者send_client_message
+    def broadcast_message(self, message:Message):
+        self.message_pool.add_broadcast_message(message)
+
+    def send_client_message(self, player_id:int, message:Message):
+        self.message_pool.add_client_message(player_id, message)
+
+    # 发送消息全部由这个函数处理
+    def process_send_message(self):
+        while True:
+            with self.lock:
+                for pid, client in self.player_sockets.items():
+                    if self.message_pool.has_client_message(pid):
+                        message = self.message_pool.get_next_client_message(pid)
+                        if message:
+                            client.send(message.serialize())
+            if self.message_pool.has_broadcast_message():
+                message = self.message_pool.get_next_broadcast_message()
+                if message:
+                    with self.lock:
+                        for client in self.player_sockets.values():
+                            client.send(message.serialize())
+    #endregion
+
     # 发牌 并确定队伍以及先出牌的玩家
     def deal(self):
         random.shuffle(self.cards)
@@ -141,7 +161,7 @@ class Room:
             else:
                 self.group_red.append(player_id)# 其余
             self.carddict[player_id] = playercards#服务器需要同步玩家手牌
-            self.player_sockets[player_id].send(Message('handcard', playercards).serialize())
+            self.send_client_message(player_id, Message('handcard', playercards))
     
     # 广播等待玩家
 
