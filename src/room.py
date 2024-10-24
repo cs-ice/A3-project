@@ -1,7 +1,6 @@
-from message import Message, MessagePool
+from message import *
 from Cardgroup import Cardgroup
 from game_logic import *
-import socket
 import threading
 import random
 '''
@@ -41,6 +40,8 @@ class Room:
         self.score = [0, 0, 0, 0]                                       # 积分
         self.i = -1                                                     # 给玩家分配的id
 
+        self.is_full = False                                            # 房间是否满员
+        self.is_ready = [False, False, False, False]                    # 玩家是否准备
         self.over = False                                               # 游戏结束
         self.time_limit = 30                                            # 出牌时间限制
         self.timer = None                                               # 计时器
@@ -53,19 +54,16 @@ class Room:
         print("房间已启动")
         threading.Thread(target=self.process_send_message).start()
         while True:
-            if self.is_full():
+            if self.is_full:#这里判断后面要改成判断是否所有玩家都准备好了
                 print("房间已满,开始发牌")
                 self.deal()
                 break
 
 
-    def is_full(self):
-        return len(self.player_sockets) == 4
-
     def add_player(self, clientSocket, username):
         # 添加玩家信息 这里可以学习一下锁的用法
         with self.lock:
-            self.i += 1
+            self.i += 1 #后面is_full的可以在这里改
             self.player_sockets[self.i] = clientSocket
             self.usernames[self.i] = username
         threading.Thread(target=self.handle, args=(self.i,)).start()
@@ -83,13 +81,16 @@ class Room:
         # 广播新玩家加入 客户端到时候需要根据这个信息更新界面
         self.broadcast_message(Message('new_player', [player_id, self.usernames[player_id]]))
 
+        # 这里后面要改成判断是否所有玩家都准备好了
+        if player_id == 3:
+            self.is_full = True
+
         # 接收消息
         while True:
             try:
-                msg = Message.deserialize(clientSocket.recv(1024))
+                msg = socket_recv(clientSocket)
                 if not msg:
-                    self.remove_player(player_id)
-                    break
+                    continue
                 if msg.type == 'play':
                     # 出牌功能
                     # 只有当前玩家才能出牌

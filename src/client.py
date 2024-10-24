@@ -1,5 +1,5 @@
 from Cardgroup import *
-from message import Message
+from message import *
 import socket
 import threading
 
@@ -29,8 +29,8 @@ class Client:
 
     # 连接服务器
     def connect_to_room(self):
-        #serverIP = "8.217.57.241"       # 服务器ip地址
-        serverIP = "172.27.130.221"     # 测试用本地ip
+        serverIP = "8.217.57.241"       # 服务器ip地址
+        #serverIP = "127.0.0.1"           # 测试用本地ip
         serverPort = 12345
         self.clientSocket.connect((serverIP, serverPort))
         
@@ -38,7 +38,7 @@ class Client:
         room_id = input("请输入房间号: ")
         username = input("请输入用户名: ")
         self.clientSocket.send(Message("roomAndName", [int(room_id), username]).serialize())
-        msg = Message.deserialize(self.clientSocket.recv(1024))
+        msg = socket_recv(self.clientSocket)
         while msg is None or msg.type == "rename" or msg.type == "reroom_id":
             if msg is None:
                 continue
@@ -49,15 +49,14 @@ class Client:
             room_id = input("请输入房间号: ")
             username = input("请输入用户名: ")
             self.clientSocket.send(Message("roomAndName", [int(room_id), username]).serialize())
-            msg = Message.deserialize(self.clientSocket.recv(1024))
+            msg = socket_recv(self.clientSocket)
         print("成功进入房间")
         threading.Thread(target=self.receive, args=(msg,)).start()
     
     # 接收服务器数据
     def receive(self, start_message: Message):
+        msg = start_message#防止丢失进入房间后的第一条消息
         while True:
-            message = self.clientSocket.recv(1024)
-            msg = Message.deserialize(message)
             if msg is None:
                 continue
             if msg.type == "id":
@@ -69,7 +68,9 @@ class Client:
                 self.rev_new_player(msg)
             elif msg.type == "handcard":
                 self.rev_handcard(msg)
-            pass
+            else:
+                print("未知消息类型")
+            msg = socket_recv(self.clientSocket)
     
     # 发送数据给服务器
     def sendmsg(self, message: Message):

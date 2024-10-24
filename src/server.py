@@ -1,6 +1,5 @@
 from message import *
 from room import *
-import socket
 import threading
 
 
@@ -31,7 +30,7 @@ class Server:
     def handle(self, clientSocket: socket.socket) -> None:
         while True:
             # 连接成功后输入房间号和用户名
-            message = Message.deserialize(clientSocket.recv(1024))
+            message = socket_recv(clientSocket)
             if message.type == 'roomAndName':
                 room_id = message.content[0]
                 username = message.content[1]
@@ -50,7 +49,7 @@ class Server:
                     break
                 # 如果房间号存在 则先判断房间是否已满 再判断名字是否重复
                 else:
-                    if self.room[room_id].is_full():
+                    if self.room[room_id].is_full:
                         clientSocket.send(Message('reroom_id', -1).serialize())
                         print("用户", username, "请求进入的房间", room_id, "已满")
                         continue
