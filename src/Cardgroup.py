@@ -143,8 +143,10 @@ class Cardgroup:
     
     def remove_cg(self, sub_cg):                        
         if self.contain(sub_cg):                    # 移除一个子group 首先要是子group 才能正确移除
-            for i in sub_cg.cards:          
-                self.remove_card(i)
+            for id_to_remove in sub_cg.cards:          
+                self.cards.remove(id_to_remove)
+            self.judgeType()
+            self.calcValue()                        # 摒弃多次使用remove_card 这样就只需要判断一次类型和计算一次value                
 
         '''
         不接受参数 使用到self.cards列表 不改变列表
