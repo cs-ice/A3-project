@@ -141,8 +141,10 @@ class Cardgroup:
         return set(cg.cards).issubset(set(self.cards))
 
     
-    def remove_cg(self, sub_cg):
-        pass
+    def remove_cg(self, sub_cg):                        
+        if self.contain(sub_cg):                    # 移除一个子group 首先要是子group 才能正确移除
+            for i in sub_cg.cards:          
+                self.remove_card(i)
 
         '''
         不接受参数 使用到self.cards列表 不改变列表
