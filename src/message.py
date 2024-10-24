@@ -1,8 +1,15 @@
 from collections import defaultdict, deque
+import socket
 import threading
 import json
 
 '''
+为了数据传输能够正确运行 我们除了message类之外还需要定义一些规则
+那就是消息头机制
+在发送消息的时候 我们需要在message的前面加上一个4字节的消息头 用来表示message的长度
+所以我们发送的二进制流格式如下
+消息头(4字节) + 消息体(长度不定)
+
 服务端发送给客户端的消息类型以及内容需要按下面的格式打包
 1."id"              content为int        客户端的id(int)
 2."rename"          content无意义       名字重复 用-1代替
@@ -25,20 +32,25 @@ import json
 
 '''
 
+
+
 # 消息类
 class Message:
     def __init__(self, type:str, content:any):
         self.type = type
         self.content = content
 
-    # 序列化
+    # 序列化成含有消息头的二进制流
     def serialize(self) -> bytes:
         # 利用jasn以及__dict__将对象序列化为json字符串
         # __dict__是一个包含对象属性的字典
-        return json.dumps(self.__dict__).encode('utf-8')
+        jsonstr = json.dumps(self.__dict__).encode('utf-8')
+        # 返回消息头+消息体
+        length_bytes = len(jsonstr).to_bytes(4, byteorder='big')
+        return length_bytes + jsonstr        
     
     
-    # 反序列化
+    # 反序列化 但是这里的反序列化不能解析出消息头 所以需要在外部解析
     @classmethod
     def deserialize(cls, byte_stream: bytes)-> 'Message':
         try:
@@ -50,7 +62,21 @@ class Message:
             print(f"Failed to deserialize message: {e}")
             return None
 
-    
+
+# 封装好socket接收含有消息头的二进制流
+def socket_recv(socket: socket.socket) -> Message:
+    length_bytes = socket.recv(4)
+    if len(length_bytes) < 4:
+        return None
+    length = int.from_bytes(length_bytes, byteorder='big')
+    data = b''
+    while len(data) < length:# while保证接收到完整的数据
+        part = socket.recv(length - len(data))
+        if not part:
+            break
+        data += part
+    return Message.deserialize(data)
+
 # 消息池类
 class MessagePool:
     def __init__(self):
