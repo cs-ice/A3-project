@@ -22,15 +22,14 @@ class Client:
         self.clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.player_id = -1
         self.handcard = Cardgroup()     # 手牌
-        self.pickcard = Cardgroup()     # 选中的牌
         self.ableto_play = False        # 是否可以出牌
         self.last_play = Cardgroup()    # 上一次出的牌
         self.receive_lock = threading.Lock()
 
     # 连接服务器
     def connect_to_room(self):
-        serverIP = "8.217.57.241"       # 服务器ip地址
-        #serverIP = "127.0.0.1"           # 测试用本地ip
+        #serverIP = "8.217.57.241"       # 服务器ip地址
+        serverIP = "127.0.0.1"           # 测试用本地ip
         serverPort = 12345
         self.clientSocket.connect((serverIP, serverPort))
         
@@ -52,6 +51,7 @@ class Client:
             msg = socket_recv(self.clientSocket)
         print("成功进入房间")
         threading.Thread(target=self.receive, args=(msg,)).start()
+        self.test()
     
     # 接收服务器数据
     def receive(self, start_message: Message):
@@ -68,6 +68,12 @@ class Client:
                 self.rev_new_player(msg)
             elif msg.type == "handcard":
                 self.rev_handcard(msg)
+            elif msg.type == "quit":
+                self.rev_quit(msg)
+            elif msg.type == "ready":
+                self.rev_ready(msg)
+            elif msg.type == "unready":
+                self.rev_unready(msg)
             else:
                 print("未知消息类型")
             msg = socket_recv(self.clientSocket)
@@ -86,9 +92,41 @@ class Client:
             self.handcard.add_card(i)
         print("你的手牌是: ", self.handcard.cards)
 
+    def rev_quit(self, message: Message):
+        print("玩家", message.content, "退出了房间")
+        pass
+
+    def ready(self):
+        self.sendmsg(Message("ready", True))
+    
+    def unready(self):
+        self.sendmsg(Message("unready", False))
+
+    def rev_ready(self, message: Message):
+        print("玩家", message.content, "准备了")
+    
+    def rev_unready(self, message: Message):
+        print("玩家", message.content, "取消准备")
+
+    def quit(self):
+        self.sendmsg(Message("quit", True))
+        self.clientSocket.close()
+        pass
+
     # 测试代码
     def test(self):
-        pass
+        while True:
+            command = input("请输入指令: ")
+            if command == "ready":
+                self.ready()
+            elif command == "unready":
+                self.unready()
+            elif command == "quit":
+                self.quit()
+                break
+            else:
+                print("未知指令")
+
 
 
 

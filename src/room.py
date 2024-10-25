@@ -3,6 +3,7 @@ from Cardgroup import Cardgroup
 from game_logic import *
 import threading
 import random
+
 '''
 游戏流程
 1.四个玩家连接后 输入用户名
@@ -22,6 +23,14 @@ import random
 server.py负责游戏房间的创建以及维护
 '''
 
+'''
+2024.10.25
+下一步实现的功能
+玩家准备
+玩家退出
+'''
+
+
 class Room:
     def __init__(self):
         self.player_sockets:dict[int, socket.socket] = {}               # 玩家套接字
@@ -31,6 +40,7 @@ class Room:
         self.currentPlayer = -1                                         # 当前出牌玩家
         self.last_player = -1                                           # 上一个出牌玩家
         self.last_play = []                                             # 上一次出的牌
+        self.order = [0, 1, 2 ,3]                                       # 出牌顺序
 
         self.group_black = []                                           # 黑队
         self.group_red = []                                             # 红队
@@ -38,7 +48,7 @@ class Room:
         self.black_over = []                                            # 黑队出完牌的玩家
         self.red_over = []                                              # 红队出完牌的玩家
         self.score = [0, 0, 0, 0]                                       # 积分
-        self.i = -1                                                     # 给玩家分配的id
+        self.idstack = [3, 2, 1, 0]                                     # 给玩家分配id的栈
 
         self.is_full = False                                            # 房间是否满员
         self.is_ready = [False, False, False, False]                    # 玩家是否准备
@@ -54,19 +64,28 @@ class Room:
         print("房间已启动")
         threading.Thread(target=self.process_send_message).start()
         while True:
-            if self.is_full:#这里判断后面要改成判断是否所有玩家都准备好了
-                print("房间已满,开始发牌")
+            if self.all_ready():
+                random.shuffle(self.order)
+                self.broadcast_message(Message('order', self.order))
+                print("所有玩家准备完毕 发送出牌顺序以及初始出牌权")
                 self.deal()
                 break
 
+    def all_ready(self):
+        for i in self.is_ready:
+            if not i:
+                return False
+        return True
 
     def add_player(self, clientSocket, username):
         # 添加玩家信息 这里可以学习一下锁的用法
         with self.lock:
-            self.i += 1 #后面is_full的可以在这里改
-            self.player_sockets[self.i] = clientSocket
-            self.usernames[self.i] = username
-        threading.Thread(target=self.handle, args=(self.i,)).start()
+            id = self.idstack.pop()
+            if len(self.idstack) == 0:
+                self.is_full = True
+            self.player_sockets[id] = clientSocket
+            self.usernames[id] = username
+        threading.Thread(target=self.handle, args=(id,)).start()
 
     # 接受客户端消息
     def handle(self, player_id:int):
@@ -80,10 +99,6 @@ class Room:
 
         # 广播新玩家加入 客户端到时候需要根据这个信息更新界面
         self.broadcast_message(Message('new_player', [player_id, self.usernames[player_id]]))
-
-        # 这里后面要改成判断是否所有玩家都准备好了
-        if player_id == 3:
-            self.is_full = True
 
         # 接收消息
         while True:
@@ -99,6 +114,10 @@ class Room:
                     # 不是当前玩家 忽略请求
                     else:
                         continue
+                elif msg.type == 'ready':
+                    self.rev_ready(player_id)
+                elif msg.type == 'unready':
+                    self.rev_unready(player_id)
                 elif msg.type == 'pass':
                     pass
                 elif msg.type == 'chat':
@@ -115,10 +134,28 @@ class Room:
                 break
         return
         
+    def rev_ready(self, player_id:int):
+        self.is_ready[player_id] = True
+        self.broadcast_message(Message('ready', player_id))
+
+    def rev_unready(self, player_id:int):
+        self.is_ready[player_id] = False
+        self.broadcast_message(Message('unready', player_id))
+
     # 移除玩家
-    def remove_player(self, player_id:int):
+    def remove_player(self, player_id:int) -> None:
         # 由于这个函数会在多个函数中调用 所以要判断是否已经移除
-        pass
+        if player_id in self.idstack:
+            return
+        with self.lock:
+            self.idstack.append(player_id)
+            self.is_ready[player_id] = False
+            self.is_full = False
+            self.player_sockets.pop(player_id)
+            self.usernames.pop(player_id)
+        self.broadcast_message(Message('quit', player_id))
+        return
+
 
     
     #region 消息处理 其他函数想要发送消息都要调用brodcast_message或者send_client_message
@@ -174,7 +211,7 @@ class Room:
 
     # 广播当前出牌权以及上一次出的牌
     def broadcast_current(self):
-        self.broadcast(Message('current', [self.currentPlayer, self.last_play]).serialize())
+        self.broadcast_message(Message('current', [self.currentPlayer, self.last_play]))
 
     # 广播聊天信息
 
