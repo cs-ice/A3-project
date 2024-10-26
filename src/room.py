@@ -3,6 +3,7 @@ from Cardgroup import Cardgroup
 from game_logic import *
 import threading
 import random
+
 '''
 游戏流程
 1.四个玩家连接后 输入用户名
@@ -22,15 +23,24 @@ import random
 server.py负责游戏房间的创建以及维护
 '''
 
+'''
+2024.10.25
+下一步实现的功能
+玩家准备
+玩家退出
+'''
+
+
 class Room:
     def __init__(self):
         self.player_sockets:dict[int, socket.socket] = {}               # 玩家套接字
         self.usernames:dict[int,str] = {}                               # 玩家用户名
         self.cards = list(range(52))                                    # 牌
         self.carddict: dict[int, list[int]] = {}                        # 玩家手牌
-        self.currentPlayer = -1                                         # 当前出牌玩家
-        self.last_player = -1                                           # 上一个出牌玩家
+        self.current_order = -1                                         # 当前出牌顺序
+        self.last_order = -1                                            # 上一个出牌顺序
         self.last_play = []                                             # 上一次出的牌
+        self.order = [0, 1, 2 ,3]                                       # 出牌顺序
 
         self.group_black = []                                           # 黑队
         self.group_red = []                                             # 红队
@@ -38,7 +48,7 @@ class Room:
         self.black_over = []                                            # 黑队出完牌的玩家
         self.red_over = []                                              # 红队出完牌的玩家
         self.score = [0, 0, 0, 0]                                       # 积分
-        self.i = -1                                                     # 给玩家分配的id
+        self.idstack = [3, 2, 1, 0]                                     # 给玩家分配id的栈
 
         self.is_full = False                                            # 房间是否满员
         self.is_ready = [False, False, False, False]                    # 玩家是否准备
@@ -54,19 +64,30 @@ class Room:
         print("房间已启动")
         threading.Thread(target=self.process_send_message).start()
         while True:
-            if self.is_full:#这里判断后面要改成判断是否所有玩家都准备好了
-                print("房间已满,开始发牌")
-                self.deal()
+            if self.all_ready():
+                self.sed_order()
+                print("所有玩家准备完毕 发送出牌顺序以及初始出牌权")
+                self.sed_begin_cards()
+                self.sed_action(self.current_order, [], [], self.last_order)
                 break
 
+    def all_ready(self):
+        for i in self.is_ready:
+            if not i:
+                return False
+        return True
 
     def add_player(self, clientSocket, username):
         # 添加玩家信息 这里可以学习一下锁的用法
         with self.lock:
-            self.i += 1 #后面is_full的可以在这里改
-            self.player_sockets[self.i] = clientSocket
-            self.usernames[self.i] = username
-        threading.Thread(target=self.handle, args=(self.i,)).start()
+            id = self.idstack.pop()
+            if len(self.idstack) == 0:
+                self.is_full = True
+            self.player_sockets[id] = clientSocket
+            self.usernames[id] = username
+        threading.Thread(target=self.handle, args=(id,)).start()
+
+    #region 服务器接受客户端消息
 
     # 接受客户端消息
     def handle(self, player_id:int):
@@ -81,10 +102,6 @@ class Room:
         # 广播新玩家加入 客户端到时候需要根据这个信息更新界面
         self.broadcast_message(Message('new_player', [player_id, self.usernames[player_id]]))
 
-        # 这里后面要改成判断是否所有玩家都准备好了
-        if player_id == 3:
-            self.is_full = True
-
         # 接收消息
         while True:
             try:
@@ -94,16 +111,20 @@ class Room:
                 if msg.type == 'play':
                     # 出牌功能
                     # 只有当前玩家才能出牌
-                    if self.currentPlayer == player_id:
-                        self.receive_play(player_id, msg.content)
+                    if self.current_order == player_id:
+                        self.rev_play(player_id, msg.content)
                     # 不是当前玩家 忽略请求
                     else:
                         continue
+                elif msg.type == 'ready':
+                    self.rev_ready(player_id)
+                elif msg.type == 'unready':
+                    self.rev_unready(player_id)
                 elif msg.type == 'pass':
                     pass
                 elif msg.type == 'chat':
                     # 聊天功能
-                    self.receive_chat(player_id, msg.content)
+                    self.rev_chat(player_id, msg.content)
                 elif msg.type == 'quit':
                     # 玩家退出 具体释放逻辑由remove_player完成
                     self.remove_player(player_id)
@@ -115,11 +136,43 @@ class Room:
                 break
         return
         
-    # 移除玩家
-    def remove_player(self, player_id:int):
-        # 由于这个函数会在多个函数中调用 所以要判断是否已经移除
-        pass
+    def rev_ready(self, player_id:int):
+        self.is_ready[player_id] = True
+        self.broadcast_message(Message('ready', player_id))
 
+    def rev_unready(self, player_id:int):
+        self.is_ready[player_id] = False
+        self.broadcast_message(Message('unready', player_id))
+
+    def rev_play(self, player_id:int, cardg:Cardgroup):
+        if not check_play(cardg):
+            return 
+        self.last_play = cardg
+        self.carddict[player_id] = [i for i in self.carddict[player_id] if i not in cardg.cards]
+        # 出完牌后检查是否游戏结束
+        if len(self.carddict[player_id]) == 0:
+            self.check_over(player_id)
+        self.next_turn()
+
+    def rev_chat(self, player_id, chat):
+        self.broadcast_message(Message('chat', [player_id, chat]))
+
+    #endregion
+
+    # 移除玩家
+    def remove_player(self, player_id:int) -> None:
+        # 由于这个函数会在多个函数中调用 所以要判断是否已经移除
+        if player_id in self.idstack:
+            return
+        with self.lock:
+            self.idstack.append(player_id)
+            self.is_ready[player_id] = False
+            self.is_full = False
+            self.player_sockets.pop(player_id)
+            self.usernames.pop(player_id)
+        self.broadcast_message(Message('quit', player_id))
+        return
+        
     
     #region 消息处理 其他函数想要发送消息都要调用brodcast_message或者send_client_message
     def broadcast_message(self, message:Message):
@@ -143,17 +196,19 @@ class Room:
                     with self.lock:
                         for client in self.player_sockets.values():
                             client.send(message.serialize())
-    #endregion
 
     # 发牌 并确定队伍以及先出牌的玩家
-    def deal(self):
+    def sed_begin_cards(self):
         random.shuffle(self.cards)
         for player_id in range(4):
             # 玩家手牌 顺便排序
             playercards = sorted(self.cards[player_id*13:(player_id+1)*13])
             if 0 in playercards:# 方片4
-                self.currentPlayer = player_id
-                self.last_player = player_id
+                for i in range(3):
+                    if self.order[i] == player_id:
+                        self.current_order = i
+                        self.last_order = i
+                        break
             if 51 in playercards:# 黑桃3
                 self.group_black.append(player_id)
             #这个elif可以防止黑桃3和黑桃A是同一个人的时候把同一个人加到黑队里面两次
@@ -164,50 +219,40 @@ class Room:
             self.carddict[player_id] = playercards#服务器需要同步玩家手牌
             self.send_client_message(player_id, Message('handcard', playercards))
     
-    # 广播等待玩家
+    def sed_action(self, curr_act_order:int, last_act: list[int], need_react_cards: list[int], last_act_order:int):
+        # curr_act_player是当前出牌玩家
+        # last_act是上家出的牌如果是[] 则表示上家pass 
+        # need_react_cards当前需要应对的牌 如果是[] 则表示这是第一次出牌 需要判断是否有方块4
+        # last_act_player是上家出牌玩家 如果是玩家自己 则此时玩家可以随便出牌
+        self.broadcast_message(Message('action', [curr_act_order, last_act, need_react_cards, last_act_order]))
 
-    # 给新玩家发送当前房间信息
-
-    # 广播新玩家加入
-
-    # 广播游戏开始
+    def sed_order(self):
+        random.shuffle(self.order)
+        self.broadcast_message(Message('order', self.order))
 
     # 广播当前出牌权以及上一次出的牌
     def broadcast_current(self):
-        self.broadcast(Message('current', [self.currentPlayer, self.last_play]).serialize())
+        self.broadcast_message(Message('current', [self.current_order, self.last_play]))
 
-    # 广播聊天信息
+    #endregion
 
-    # 处理出牌信息
-    def receive_play(self, player_id:int, cardg:Cardgroup):
-        if not check_play(cardg):
-            return 
-        self.last_play = cardg
-        self.carddict[player_id] = [i for i in self.carddict[player_id] if i not in cardg.cards]
-        # 出完牌后检查是否游戏结束
-        if len(self.carddict[player_id]) == 0:
-            self.check_over(player_id)
-        self.next_turn()
-
-    # 处理聊天信息
-    def receive_chat(self, player_id, chat):
-        pass
 
     
+
     # 计时器
     def start_trun(self):
         self.timer = threading.Timer(self.time_limit, self.time_up)
         self.timer.start()
 
     def time_up(self):
-        self.force_play(self.currentPlayer)
+        self.force_play(self.current_order)
         self.next_turn()
     
     # 下一个玩家出牌
     # 当更新完上一次出牌以及新的手牌之后调用
     def next_turn(self):
         self.timer.cancel()
-        self.currentPlayer = (self.currentPlayer + 1) % 4
+        self.current_order = (self.current_order + 1) % 4
         self.broadcast_current()
         self.start_trun()
 
@@ -313,7 +358,7 @@ class Room:
     def force_play(self, player_id:int):
         # 强制出牌有两种情况
         # 1.如果上一次出牌的是自己 那么可以随便出牌 默认出最小的一张牌
-        if self.currentPlayer == player_id:
+        if self.current_order == player_id:
             self.carddict[player_id].sort()
             self.last_play = [self.carddict[player_id][0]]
             self.carddict[player_id] = self.carddict[player_id][1:]

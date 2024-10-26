@@ -20,7 +20,7 @@ import json
 7."handcard"        content为lst        手牌列表[int]
 8."start"           content无意义       用-1代替
 9."curr"            content为lst        当前出牌的信息[当前有出牌权的玩家(int) 上一个出牌权的人出的牌(lst)]
-10."over"            content为lst        [该客户端是否胜利[bool] 所有玩家得分结果[int]]
+10."over"           content为lst        [该客户端是否胜利[bool] 所有玩家得分结果[int]]
 
 客户端发送给服务端的消息需要按下面的格式打包
 1."roomAndName"     content为lst        [房间号(int) 用户名(str)]        
