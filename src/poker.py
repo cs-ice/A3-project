@@ -7,9 +7,11 @@ Poker类:
 
 '''
 import image
+import pygame
 class Poker(image.Image):
-    def __init__(self, path, size, pos, id):
-        super().__init__(path, size, pos)
+    def __init__(self, path, ratio, pos, id):
+        super().__init__(path, ratio, pos)
         self.id = id
         self.is_selected = False
+        
         
