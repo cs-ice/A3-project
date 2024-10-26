@@ -1,6 +1,7 @@
 from message import *
 from room import *
 import threading
+import time
 
 
 
@@ -13,6 +14,7 @@ class Server:
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)   #服务器套接字
         self.serverSocket.bind(('0.0.0.0', 12345))
         self.lock = threading.Lock()                                            # 锁保证线程安全
+        threading.Thread(target=self.clean_empty_room, daemon=True).start()     # 定时清理空房间(5分钟清理一次, 使用守护线程)
 
     # 开始监听客户端连接
     def start(self):
@@ -23,6 +25,7 @@ class Server:
             clientSocket, addr = self.serverSocket.accept()
             print("新连接", addr)
             threading.Thread(target=self.handle, args=(clientSocket,)).start()
+            
 
 
     # 这个方法用于处理玩家刚连接时到进入房间的过程
@@ -63,6 +66,16 @@ class Server:
                         break
         # 剩下的逻辑交给room处理 server不用管了
         return
+
+    def clean_empty_room(self):
+        while True:
+            time.sleep(300)
+            with self.lock:
+                empty_rooms = [room_id for room_id, room in self.room.items() if room.is_empty()]
+                for room_id in empty_rooms:
+                    del self.room[room_id]
+                    print("房间", room_id, "已清空")
+
 
 if __name__ == '__main__':
     server = Server()

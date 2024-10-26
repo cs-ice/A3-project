@@ -38,8 +38,9 @@ class Room:
         self.cards = list(range(52))                                    # 牌
         self.carddict: dict[int, list[int]] = {}                        # 玩家手牌
         self.current_order = -1                                         # 当前出牌顺序
-        self.last_order = -1                                            # 上一个出牌顺序
-        self.last_play = []                                             # 上一次出的牌
+        self.last_order = -1                                            # 出需要应对的牌的玩家的顺序
+        self.last_play = []                                             # 目前需要应对的牌
+        self.last_act = []                                              # 上一次行动
         self.order = [0, 1, 2 ,3]                                       # 出牌顺序
 
         self.group_black = []                                           # 黑队
@@ -58,8 +59,6 @@ class Room:
         self.message_pool = MessagePool()                               # 消息池
         self.lock = threading.Lock()                                    # 锁
 
-
-
     def work(self):
         print("房间已启动")
         threading.Thread(target=self.process_send_message).start()
@@ -69,7 +68,12 @@ class Room:
                 print("所有玩家准备完毕 发送出牌顺序以及初始出牌权")
                 self.sed_begin_cards()
                 self.sed_action(self.current_order, [], [], self.last_order)
+                for i in range(4):
+                    self.all_ready[i] = False
                 break
+
+    def is_empty(self):
+        return len(self.idstack) == 4
 
     def all_ready(self):
         for i in self.is_ready:
@@ -217,7 +221,10 @@ class Room:
             else:
                 self.group_red.append(player_id)# 其余
             self.carddict[player_id] = playercards#服务器需要同步玩家手牌
-            self.send_client_message(player_id, Message('handcard', playercards))
+            self.sed_handcard(player_id)
+
+    def sed_handcard(self, player_id:int):
+        self.send_client_message(player_id, Message('handcard', self.carddict[player_id]))
     
     def sed_action(self, curr_act_order:int, last_act: list[int], need_react_cards: list[int], last_act_order:int):
         # curr_act_player是当前出牌玩家
@@ -230,13 +237,18 @@ class Room:
         random.shuffle(self.order)
         self.broadcast_message(Message('order', self.order))
 
-    # 广播当前出牌权以及上一次出的牌
-    def broadcast_current(self):
-        self.broadcast_message(Message('current', [self.current_order, self.last_play]))
 
     #endregion
 
-
+    # 一些辅助函数
+    def id_to_order(self, player_id:int) -> int:
+        for i in range(4):
+            if self.order[i] == player_id:
+                return i
+        return -1
+    
+    def order_to_id(self, order:int) -> int:
+        return self.order[order]
     
 
     # 计时器
@@ -253,7 +265,7 @@ class Room:
     def next_turn(self):
         self.timer.cancel()
         self.current_order = (self.current_order + 1) % 4
-        self.broadcast_current()
+        self.sed_action(self.current_order, self.last_act, self.last_play, self.last_order)
         self.start_trun()
 
     # 输入出完牌的玩家id 判断游戏是否结束
@@ -355,18 +367,24 @@ class Room:
             return
 
     # 输入玩家id 强制其出牌
-    def force_play(self, player_id:int):
+    def force_play(self, player_order:int):
         # 强制出牌有两种情况
         # 1.如果上一次出牌的是自己 那么可以随便出牌 默认出最小的一张牌
-        if self.current_order == player_id:
-            self.carddict[player_id].sort()
-            self.last_play = [self.carddict[player_id][0]]
-            self.carddict[player_id] = self.carddict[player_id][1:]
+        if self.last_order == player_order:
+            id = self.order_to_id(player_order)
+            # 强制出最小的一张牌
+            self.carddict[id].sort()
+            self.carddict[id] = self.carddict[id][1:]
+            # 更新信息
+            self.last_play = [self.carddict[id][0]]
+            self.last_act = self.last_play
+            self.last_order = player_order
             self.next_turn()
         # 2.如果上一次出牌的不是自己 那么默认不出牌
         else:
             # 这里不能写self.last_play = []
             # 因为这样会导致下一个玩家出牌的时候判断出牌是否符合逻辑的时候出错
             # 只需要开始下一个玩家的计时器即可
+            self.last_act = []
             self.next_turn()
 
