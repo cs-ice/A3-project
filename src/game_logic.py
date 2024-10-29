@@ -1,15 +1,20 @@
 from Cardgroup import *
 
-def check_play(lastcards: Cardgroup, currcard: Cardgroup) -> bool:
+def check_play(last: list[int], curr: list[int]) -> bool:
+    # 这样意味着是第一次出牌 直接返回True
+    if last == []:
+        return True
+    lastcard = create_cardgroup(last)
+    currcard = create_cardgroup(curr)
     if currcard.type == -1:
         return False
-    if lastcards.type <= 3:#这时候只能对应接牌
-        if lastcards.type != currcard.type:
+    if lastcard.type <= 3:#这时候只能对应接牌
+        if lastcard.type != currcard.type:
             return False
         else:#类型相同 直接比较
-            return currcard.value > lastcards.value
-    if lastcards.type == currcard.type:#类型相同 直接比较
-        return currcard.value > lastcards.value
+            return currcard.value > lastcard.value
+    if lastcard.type == currcard.type:#类型相同 直接比较
+        return currcard.value > lastcard.value
     else:
-        return currcard.type > lastcards.type
+        return currcard.type > lastcard.type
 

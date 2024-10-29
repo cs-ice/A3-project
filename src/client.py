@@ -2,6 +2,7 @@ from Cardgroup import *
 from message import *
 import socket
 import threading
+from game_logic import *
 
 '''
 游戏流程以及客户端需要实现的功能
@@ -29,7 +30,9 @@ class Client:
         self.need_to_react = []         # 需要应对的牌
         self.order_to_act_dict = {}     # 所有玩家的上次出牌记录
         self.handcard = []              # 手牌
+        self.pickedcard = Cardgroup()   # 选中的牌
         self.ableto_play = False        # 是否可以出牌
+        self.allscore = [0, 0, 0, 0]    # 所有玩家的得分
 
         self.receive_lock = threading.Lock()
 
@@ -72,6 +75,9 @@ class Client:
                 self.rev_order(msg)
             elif msg.type == "action":
                 self.rev_action(msg)
+            elif msg.type == "score":
+                self.rev_score(msg)
+                print("游戏结束")
             else:
                 print("未知消息类型")
             msg = socket_recv(self.clientSocket)
@@ -112,6 +118,19 @@ class Client:
     def sed_chat(self, content: str):
         self.sendmsg(Message("chat", content))
 
+    def sed_pass(self):
+        self.sendmsg(Message("pass", []))
+
+    def sed_play(self):
+        if self.ableto_play:
+            if check_play(self.need_to_react, self.pickedcard.cards):
+                self.sendmsg(Message("play", self.pickedcard.cards))
+            else:
+                print("出牌不符合规则")
+        else:
+            print("当前不是你的出牌顺序")
+
+
     #endregion
 
     #region 接收消息
@@ -139,9 +158,9 @@ class Client:
     def rev_handcard(self, message: Message):
         # 这里的message.content是一个list
         # 里面是降序排列的手牌
-        for i in message.content:
-            self.handcard.add_card(i)
-        print("你的手牌是: ", self.handcard.cards)
+        self.handcard = create_cardgroup(message.content)
+        print("你的手牌是: ")
+        self.handcard.showcard()
 
     def rev_quit(self, message: Message):
         # 这里的message.content是一个int
@@ -174,6 +193,7 @@ class Client:
             if self.order[i] == self.player_id:
                 self.myorder = i
                 break
+        print("你的出牌顺序是: ", self.myorder)
 
     def rev_action(self, message: Message):
         # 这里的message.content是一个list
@@ -191,6 +211,21 @@ class Client:
             self.ableto_play = True
         else:
             self.ableto_play = False
+        print("当前出牌的玩家是: ", self.curr_order)
+        print("上一个出牌的玩家是: ", self.last_order)
+        print("需要应对的牌是: ", self.need_to_react)
+        print("上一个出牌的玩家的出牌是: ", message.content[1])
+
+    def rev_score(self, message: Message):
+        # 这里的message.content是一个list
+        # 里面是玩家id的得分 注意是id不是order
+        if self.allscore[self.player_id] < message.content[self.player_id]:
+            print("你赢了") 
+        elif self.allscore[self.player_id] > message.content[self.player_id]:
+            print("你输了")
+        else:
+            print("这局对你来说是平局")
+        self.allscore = message.content
 
     #endregion
 
@@ -207,6 +242,25 @@ class Client:
                 self.sed_ready()
             elif command == "unready":
                 self.sed_unready()
+            elif command == "pass":
+                self.sed_pass()
+            elif command == "pick":
+                while True:
+                    try:
+                        card_suit, card_point = map(int, input("请输入花色和点数，用空格分隔: ").split())
+                        card_id = ((card_point + 9) % 13) * 4 + card_suit
+                        self.pickedcard.add_card(card_id)
+                        print("当前选中的牌: ")
+                        self.pickedcard.showcard()
+                        stryn = input("是否继续选牌(y/n): ")
+                        if stryn == "n":
+                            break
+                        else:
+                            continue
+                    except Exception as e:
+                        print(e)
+            elif command == "play":
+                self.sed_play()
             elif command == "quit":
                 self.quit()
                 break

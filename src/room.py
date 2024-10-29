@@ -49,6 +49,7 @@ class Room:
         self.black_over = []                                            # 黑队出完牌的玩家
         self.red_over = []                                              # 红队出完牌的玩家
         self.score = [0, 0, 0, 0]                                       # 积分
+        self.win = [False, False, False, False]                         # 胜利情况
         self.idstack = [3, 2, 1, 0]                                     # 给玩家分配id的栈
 
         self.is_full = False                                            # 房间是否满员
@@ -68,8 +69,9 @@ class Room:
                 print("所有玩家准备完毕 发送出牌顺序以及初始出牌权")
                 self.sed_begin_cards()
                 self.sed_action(self.current_order, [], [], self.last_order)
+                self.start_trun()
                 for i in range(4):
-                    self.all_ready[i] = False
+                    self.is_ready[i] = False
                 break
 
     def is_empty(self):
@@ -113,19 +115,13 @@ class Room:
                 if not msg:
                     continue
                 if msg.type == 'play':
-                    # 出牌功能
-                    # 只有当前玩家才能出牌
-                    if self.current_order == player_id:
-                        self.rev_play(player_id, msg.content)
-                    # 不是当前玩家 忽略请求
-                    else:
-                        continue
+                    self.rev_play(player_id, msg.content)
                 elif msg.type == 'ready':
                     self.rev_ready(player_id)
                 elif msg.type == 'unready':
                     self.rev_unready(player_id)
                 elif msg.type == 'pass':
-                    pass
+                    self.rev_pass(player_id)
                 elif msg.type == 'chat':
                     # 聊天功能
                     self.rev_chat(player_id, msg.content)
@@ -148,14 +144,39 @@ class Room:
         self.is_ready[player_id] = False
         self.broadcast_message(Message('unready', player_id))
 
-    def rev_play(self, player_id:int, cardg:Cardgroup):
-        if not check_play(cardg):
+    def rev_pass(self, player_id:int):
+        # 只有当前玩家才能pass
+        if self.current_order == self.id_to_order(player_id):
+            # pass相当于不出牌
+            self.last_act = []
+            self.next_turn()
+        else:
+            return
+
+    def rev_play(self, player_id:int, cardg: list[int]):
+        # 只有当前玩家才能出牌
+        if self.current_order != self.id_to_order(player_id):
+            return
+        # 出牌逻辑
+        if not check_play(self.last_play, cardg):
             return 
         self.last_play = cardg
-        self.carddict[player_id] = [i for i in self.carddict[player_id] if i not in cardg.cards]
+        self.last_act = cardg
+        self.last_order = self.current_order
+        self.carddict[player_id] = [i for i in self.carddict[player_id] if i not in cardg]
         # 出完牌后检查是否游戏结束
         if len(self.carddict[player_id]) == 0:
-            self.check_over(player_id)
+            if self.check_over(player_id):
+                # 游戏结束 调用对应的逻辑 无需开启下一个turn
+                # 这时候game_over函数已经计算完积分
+                # 这时候需要广播两个信息
+                # 1.最后一次出牌的信息
+                # 2.积分信息
+                self.sed_action(self.current_order, self.last_act, self.last_play, self.last_order)
+                self.sed_score()
+                # 更新完积分后再把房间的状态重置
+                self.over = True
+                return
         self.next_turn()
 
     def rev_chat(self, player_id, chat):
@@ -206,9 +227,9 @@ class Room:
         random.shuffle(self.cards)
         for player_id in range(4):
             # 玩家手牌 顺便排序
-            playercards = sorted(self.cards[player_id*13:(player_id+1)*13])
+            playercards = sorted(self.cards[player_id*13:(player_id+1)*13], reverse=True)
             if 0 in playercards:# 方片4
-                for i in range(3):
+                for i in range(4):
                     if self.order[i] == player_id:
                         self.current_order = i
                         self.last_order = i
@@ -224,6 +245,7 @@ class Room:
             self.sed_handcard(player_id)
 
     def sed_handcard(self, player_id:int):
+        self.carddict[player_id].sort(reverse=True)
         self.send_client_message(player_id, Message('handcard', self.carddict[player_id]))
     
     def sed_action(self, curr_act_order:int, last_act: list[int], need_react_cards: list[int], last_act_order:int):
@@ -237,6 +259,9 @@ class Room:
         random.shuffle(self.order)
         self.broadcast_message(Message('order', self.order))
 
+    def sed_score(self):
+        # 注意score是一个list 且下标和player_id是一一对应的 不是和order对应
+        self.broadcast_message(Message('score', self.score))
 
     #endregion
 
@@ -264,9 +289,20 @@ class Room:
     # 当更新完上一次出牌以及新的手牌之后调用
     def next_turn(self):
         self.timer.cancel()
-        self.current_order = (self.current_order + 1) % 4
+        # 单独给current_order的玩家发送手牌信息
+        self.sed_handcard(self.order_to_id(self.current_order))
+        self.order_change()
         self.sed_action(self.current_order, self.last_act, self.last_play, self.last_order)
         self.start_trun()
+
+    # 更新出牌权
+    def order_change(self):
+        temp = self.current_order = (self.current_order + 1) % 4
+        # 如果下一个玩家没有手牌 则跳过
+        # 游戏的规则决定了这个while循环一定会结束 因为不可能至少有一个玩家有手牌
+        while self.carddict[self.order_to_id(temp)] == []:
+            temp = (temp + 1) % 4
+        self.current_order = temp
 
     # 输入出完牌的玩家id 判断游戏是否结束
     def check_over(self, player_id:int) -> bool:
@@ -294,7 +330,6 @@ class Room:
                 self.score[self.group_black[1]] += 2
                 self.score[self.group_red[0]] -= 2
                 self.score[self.group_red[1]] -= 2
-                self.over = True
                 return
             # 红赢
             elif(self.win_order[0] in self.group_red and self.win_order[1] in self.group_red):
@@ -302,7 +337,6 @@ class Room:
                 self.score[self.group_red[1]] += 2
                 self.score[self.group_black[0]] -= 2
                 self.score[self.group_black[1]] -= 2
-                self.over = True
                 return
             # 黑红混合 这时候win_order的长度至少为3
             # 黑红黑 win_order[1]不用判断 因为前面已经判断过了
@@ -311,7 +345,6 @@ class Room:
                 self.score[self.group_black[1]] += 1
                 self.score[self.group_red[0]] -= 1
                 self.score[self.group_red[1]] -= 1
-                self.over = True
                 return
             # 红黑红
             elif(self.win_order[0] in self.group_red and self.win_order[2] in self.group_red):
@@ -319,11 +352,9 @@ class Room:
                 self.score[self.group_red[1]] += 1
                 self.score[self.group_black[0]] -= 1
                 self.score[self.group_black[1]] -= 1
-                self.over = True
                 return
             # 平局 积分不变
             else:
-                self.over = True
                 return
         # 2.黑桃三和黑桃A是同一个人(独狼)的情况
         elif len(self.group_black) == 1 and len(self.group_red) == 3:
@@ -332,7 +363,6 @@ class Room:
                 self.score[self.group_black[0]] += 3
                 for i in self.group_red:
                     self.score[i] -= 1
-                self.over = True
                 return
             # 黑是第二个赢的 0 +2 -1 -1
             elif(self.win_order[1] in self.group_black):
@@ -341,29 +371,24 @@ class Room:
                 for i in self.group_red:
                     if i != red_win:
                         self.score[i] -= 1
-                self.over = True
                 return
             # 黑是第三个赢的 +1 +1 -2 0
             elif(self.win_order[2] in self.group_black):
                 self.score[self.group_black[0]] -= 2
                 self.score[self.win_order[0]] += 1
                 self.score[self.win_order[1]] += 1
-                self.over = True
                 return
             # 黑是最后一个赢的 +1 +1 +1 -3
             elif(self.win_order[3] in self.group_black):
                 self.score[self.group_black[0]] -= 3
                 for i in self.group_red:
                     self.score[i] += 1
-                self.over = True
                 return
             # 实际上不会出现这种情况
             else:
-                self.over = True
                 return
         # 实际上也不会出现这种情况
         else:
-            self.over = True
             return
 
     # 输入玩家id 强制其出牌
@@ -379,12 +404,10 @@ class Room:
             self.last_play = [self.carddict[id][0]]
             self.last_act = self.last_play
             self.last_order = player_order
-            self.next_turn()
         # 2.如果上一次出牌的不是自己 那么默认不出牌
         else:
             # 这里不能写self.last_play = []
             # 因为这样会导致下一个玩家出牌的时候判断出牌是否符合逻辑的时候出错
             # 只需要开始下一个玩家的计时器即可
             self.last_act = []
-            self.next_turn()
 
