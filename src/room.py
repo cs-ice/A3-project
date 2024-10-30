@@ -399,11 +399,24 @@ class Room:
             id = self.order_to_id(player_order)
             # 强制出最小的一张牌
             self.carddict[id].sort()
-            self.carddict[id] = self.carddict[id][1:]
-            # 更新信息
+            # 更新信息 注意下面两个语句的顺序不能颠倒
             self.last_play = [self.carddict[id][0]]
+            self.carddict[id] = self.carddict[id][1:]
             self.last_act = self.last_play
             self.last_order = player_order
+                    # 出完牌后检查是否游戏结束
+            if len(self.carddict[id]) == 0:
+                if self.check_over(id):
+                    # 游戏结束 调用对应的逻辑 无需开启下一个turn
+                    # 这时候game_over函数已经计算完积分
+                    # 这时候需要广播两个信息
+                    # 1.最后一次出牌的信息
+                    # 2.积分信息
+                    self.sed_action(self.current_order, self.last_act, self.last_play, self.last_order)
+                    self.sed_score()
+                    # 更新完积分后再把房间的状态重置
+                    self.over = True
+                    return
         # 2.如果上一次出牌的不是自己 那么默认不出牌
         else:
             # 这里不能写self.last_play = []
