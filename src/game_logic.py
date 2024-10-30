@@ -1,9 +1,9 @@
 from Cardgroup import *
 
 def check_play(last: list[int], curr: list[int]) -> bool:
-    # 这样意味着是第一次出牌 直接返回True
+    # 这样意味着是第一次出牌 需要判断是否包含方块4
     if last == []:
-        return True
+        return 0 in curr
     lastcard = create_cardgroup(last)
     currcard = create_cardgroup(curr)
     if currcard.type == -1:
