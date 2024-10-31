@@ -18,6 +18,7 @@ class Image(pygame.sprite.Sprite):
         self.image = pygame.transform.scale(self.image, self.size)  # 转换大小
         self.rect = self.image.get_rect(topleft = pos)              # 获取图片矩形 图片移动就是移动矩形
         # self.rect.x, self.rect.y = pos                            # 改变矩形位置到目标pos
+        self.pre_selected = False                                   # 预-选中
         self.is_selected = False                                    # 该图片是否被选中  
        
 
@@ -26,6 +27,12 @@ class Image(pygame.sprite.Sprite):
         self.end_pos = end_pos
         self.start_time = pygame.time.get_ticks()
         self.is_moving  = True
+
+
+    def set_rect(self, x, y, width, height):                        # 重新设定矩形 并更新位置
+        self.rect.width = width
+        self.rect.height = height
+        self.set_end_pos((x, y))
 
 
     def move_to(self):                                              # 平移到指定坐标
@@ -41,13 +48,13 @@ class Image(pygame.sprite.Sprite):
 
         start_pos = pygame.Vector2(self.rect.topleft)
         end_pos = pygame.Vector2(self.end_pos)
-        print('start pos:', start_pos)
-        print('end pos:', end_pos)
-        print(elapsed_time)
+        #print('start pos:', start_pos)
+        #print('end pos:', end_pos)
+        #print(elapsed_time)
         if start_pos == end_pos:
-            print('美国')
+            #print('美国')
             return
-        print('过了')
+        #print('过了')
         direction = end_pos - start_pos                             # 末减初
         distance = direction.length()                               # 速度越来越小了 而不是固定 所以有问题但不大
         speed = distance / 1                                        # 1s 这里写法上不太合适但是运行正常就不想改了
@@ -58,33 +65,41 @@ class Image(pygame.sprite.Sprite):
 
 
     def select_move(self, event):
+        print(event)
         if self.rect.collidepoint(event.pos):                  # 鼠标与牌重合 且牌没被选中 且按下按键 且按键是左键 牌才会升起 
 
-            if self.is_selected == False and event.type == pygame.MOUSEMOTION and event.buttons[0] == 1:
-                self.set_end_pos((self.end_pos[0], self.end_pos[1] - 20))
-                self.is_selected = True
-                return            
-            elif self.is_selected == False and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                self.set_end_pos((self.end_pos[0], self.end_pos[1] - 20))
-                self.is_selected = True
-                return 
-                                                                     # return结束执行下列
-      
-            if event.type == pygame.MOUSEBUTTONDOWN and self.is_selected == True: # 按下按键且牌已被选中 那么取消选中并且移动会原来位置
-                self.set_end_pos((self.end_pos[0], self.end_pos[1] + 20))
-                self.is_selected = False
-        
-        if event.type == pygame.MOUSEBUTTONDOWN and self.is_selected == True and event.button == 3: # 按下按键且牌已被选中 那么取消选中并且移动会原来位置
-                self.set_end_pos((self.end_pos[0], self.end_pos[1] + 20))
-                self.is_selected = False
+            if event.type == pygame.MOUSEMOTION and event.buttons[0] == 1:
+                self.pre_selected = True
+                return  
 
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                self.pre_selected = True
+                return           
+      
+            """ if event.type == pygame.MOUSEBUTTONDOWN and self.is_selected == True: # 按下按键且牌已被选中 那么取消选中并且移动会原来位置
+                self.set_end_pos((self.end_pos[0], self.end_pos[1] + 20))
+                self.is_selected = False
+                return """
+        
+        if event.type == pygame.MOUSEBUTTONUP and self.pre_selected == True: # 松开鼠标 且已预选
+            self.is_selected = not self.is_selected                      # 翻转选中状态
+            if self.is_selected:
+                self.set_end_pos((self.end_pos[0], self.end_pos[1] - 20))
+            else:
+                self.set_end_pos((self.end_pos[0], self.end_pos[1] + 20))  
+            self.pre_selected = False
+            return
+        
+        if event.type == pygame.MOUSEBUTTONDOWN and self.is_selected == True and event.button == 3: # 按下右按键且牌已被选中 那么取消选中并且移动会原来位置
+                self.set_end_pos((self.end_pos[0], self.end_pos[1] + 20))
+                self.is_selected = False
+                return
+
+    
     def update(self):
         self.move_to()
 
-
-        
-
-    
+ 
     def draw(self, screen):
         self.update()
         screen.blit(self.image, self.rect)
