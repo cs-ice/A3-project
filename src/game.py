@@ -45,25 +45,42 @@ BUTTON_SEND_HEIGHT, BUTTON_SEND_WIDTH = 140, 60
 
 import pygame
 from image import *
+from player import Player
+from button import Button
+from inputbox import InputBox
 import sys
+import os
+os.environ["SDL_IME_SHOW_UI"] = "1" # 显示输入候选框 0是False 1是True
+
+
 
 
 class Game:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.font = pygame.font.SysFont('华文楷体', 20)
         self.Clock = pygame.time.Clock()
+        self.all_card_images = {}                  # 整幅牌的图形 初始化
 
-        self.handcards = [x+9 for x in range(13)]                                     # 手牌的ID列表
-        self.handcards_images = {}                              # 手牌的图像字典   格式{ID： Image}
+        self.handcards = [x+9 for x in range(9)]                                     # 手牌的ID列表
+        self.handcards_images = {}                 # 手牌的图像字典   格式{card_ID： Image}
         self.handcards_length = 0                  # 手牌长度 用于检测手牌长度变化 若变化就更新手牌绘制
 
+        self.deskcards = []
+        self.deskcards_images = {}
+        self.deskcards_sprite_groups = {}                  # 字典 {PLAYERID: SpriteGroup}
+
+
+        self.myid = -1
+        self.order = []                                     # 本地化的顺序 自己是第一号元素 [myid, rightid, upwardid, leftid]
+        self.order_id_dict = []                             # {0:myid, 1:.....}
     '''
     若手牌数量发生变化  更新手牌的位置
     '''
     def update_handcard_rect(self):
         curr_handcards_len = len(self.handcards)
-        print(self.handcards_length)
+        #print(self.handcards_length)
         if curr_handcards_len == self.handcards_length:        # 若当前手牌数 等于上一次的手牌长度 return退出
             return
         
@@ -100,30 +117,141 @@ class Game:
         self.update_handcard_rect()
         pass
 
+    '''
+    将自己的手牌发送至牌桌 
+    '''
+    def send_to_desk(self):                         # 应该是无需实时更新的 只需要在出牌的时候更新就行
+        for card_id, image in self.handcards_images.items():
+            if image.on_desk:
+                image.set_end_pos((440, 275))
+                self.deskcards_images[card_id] = image  # 即把on_desk的牌移动到这个字典里
+        # 遍历过程中删除可能造成意想不到的错误 所以下面单独删除
 
-    def run(self):
-        self.handcards_to_images()
-        while True:
+        for key in self.deskcards_images.keys():        # 遍历桌上字典的键
+            self.handcards.remove(key)
+            del self.handcards_images[key]
+
+
+
+
+    def update_deskcard_rect(self):                         # 负责更新牌桌 精灵的矩形
+        # 目前想法 每接收一个playerID发来的牌 就只更新该ID的就行
+        # 所以 需要接受一组牌的ID列表 接受一个玩家ID 知道该ID 还需要根据ID获得该ID的order
+        
+        # 五张牌占400 最后一张100 所以只有300可分配
+
+        length = len(card_lst)      # 根据牌的长度操作
+
+        if order == 0:       # 即自己 下方
+            if length == 1:
+                image = self.all_card_images[card_id]
+                image.set_end_pos(590, 275)
+                # 将这张image加入到 order为0的group即可
+            elif length == 2:
+                image1 = self.all_card_images[card_id]
+                image2 = self.all_card_images[card_id]
+                image1.set_end_pos(540, 275)
+                image2.set_end_pos(640, 275)
+                # 同理加入即可
+            elif length == 3:
+                image1 = self.all_card_images[card_id]
+                image2 = self.all_card_images[card_id]
+                image3 = self.all_card_images[card_id]
+                image1.set_end_pos(490, 275)
+                image2.set_end_pos(590, 275)
+                image3.set_end_pos(690, 275)
+
+            elif length == 4:
+                pass
+            elif length == 5:
+                pass
+               
+                
+        elif order == 1:     # 右方
+            pass
+        elif order == 2:     # 上方
+            pass
+        elif order == 3:     # 左方
+            pass
+
+
+
+        pass
+        # 准备界面
+    def ready_scene(self):
+        WAIT_bg = Image('pic\waitbg.jpg', (1280,720),(0,0))
+        waiting = True
+        inputBox_room = InputBox(self.screen, 500, 400, 300, 40, self.font)
+        while waiting:
             for event in pygame.event.get():
+                inputBox_room.get_text(event)
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
                 elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if inputBox_room.return_text() == 'nb':
+                        waiting = False
+                    pass
+                    
+                elif event.type == pygame.MOUSEMOTION:
+                    pass
+                elif event.type == pygame.MOUSEBUTTONUP:
+                    pass
+                
+                
+            
+            WAIT_bg.draw(self.screen)
+            inputBox_room.draw()
+            self.Clock.tick(60)
+
+            pygame.display.update()
+
+
+    def run(self):
+        self.ready_scene()
+
+
+        self.handcards_to_images()
+        player1 = Player((20, 250))
+        player2 = Player((1280-66-20, 250))
+        player3 = Player((590, 20))
+        
+        while True:
+            for event in pygame.event.get():
+                print(999)
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    # self.handcards_images[10].on_desk = True
+                    self.send_to_desk()
+                    print(999)
                     for index in self.handcards:
                         self.handcards_images[index].select_move(event)
+                    self.update_handcard_rect()
+                    
                 elif event.type == pygame.MOUSEMOTION:
+                    self.handcards_images[11].set_end_pos(event.pos)
+                    print(event.pos)
                     for index in self.handcards:
                         self.handcards_images[index].select_move(event)
                 elif event.type == pygame.MOUSEBUTTONUP:
                     for index in self.handcards:
                         self.handcards_images[index].select_move(event)
             self.screen.fill((0,0,0))
-            
+            player1.draw(self.screen)
+            player2.draw(self.screen)
+            player3.draw(self.screen)
             for i in self.handcards:
                 self.handcards_images[i].draw(self.screen)
                 # print()
+            for i in self.deskcards_images:
+                self.deskcards_images[i].draw(self.screen)
             
-            self.Clock.tick(60)
+            
+                # print(i)
+                # print()
+            self.Clock.tick()
             pygame.display.update()
 
 
