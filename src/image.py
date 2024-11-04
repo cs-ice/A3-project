@@ -7,31 +7,35 @@ class Image(pygame.sprite.Sprite):
         self.path = path                                            # 图片路径
         self.pos = list(pos)                                        # 图片位置
         
-        self.start_pos = self.pos
-        self.end_pos = self.pos
-        self.is_moving = False
-        self.start_time = pygame.time.get_ticks()
+        self.start_pos = self.pos                                   # 出发时候的位置
+        self.end_pos = self.pos                                     # 最终到达的位置
+        self.is_moving = False                                      # 检测是否移动
+        self.moving_start_time = pygame.time.get_ticks()            # 移动开始时间
 
 
-        self.size = size
+        self.size = list(size)
         self.image = pygame.image.load(self.path)                   # 加载图片                                                               # 图片大小元组
         self.image = pygame.transform.scale(self.image, self.size)  # 转换大小
         self.rect = self.image.get_rect(topleft = pos)              # 获取图片矩形 图片移动就是移动矩形
         # self.rect.x, self.rect.y = pos                            # 改变矩形位置到目标pos
         self.pre_selected = False                                   # 预-选中
         self.is_selected = False                                    # 该图片是否被选中  
-       
+        
+        self.on_desk = False                                        # 是否在牌桌上 若是 则缩小一点
+        
+        
 
     
     def set_end_pos(self, end_pos):                                 # 设置终点 与move to搭配
         self.end_pos = end_pos
-        self.start_time = pygame.time.get_ticks()
+        self.moving_start_time = pygame.time.get_ticks()
         self.is_moving  = True
 
 
     def set_rect(self, x, y, width, height):                        # 重新设定矩形 并更新位置
         self.rect.width = width
         self.rect.height = height
+
         self.set_end_pos((x, y))
 
 
@@ -39,11 +43,12 @@ class Image(pygame.sprite.Sprite):
         if not self.is_moving:
             return
 
-        elapsed_time = pygame.time.get_ticks() - self.start_time    # 流逝的时间
-        
-        if (elapsed_time) >= 1500:                                  # 在1秒内完成移动 冗余
+        elapsed_time = pygame.time.get_ticks() - self.moving_start_time    # 流逝的时间
+
+        if (elapsed_time) >= 500:                                  # 在1秒内完成移动 冗余
             self.rect.topleft = self.end_pos                        # 超时直接设置 就是快准狠
             self.is_moving = False
+
             return
 
         start_pos = pygame.Vector2(self.rect.topleft)
@@ -65,7 +70,7 @@ class Image(pygame.sprite.Sprite):
 
 
     def select_move(self, event):
-        print(event)
+        # print(event)
         if self.rect.collidepoint(event.pos):                  # 鼠标与牌重合 且牌没被选中 且按下按键 且按键是左键 牌才会升起 
 
             if event.type == pygame.MOUSEMOTION and event.buttons[0] == 1:
@@ -95,7 +100,8 @@ class Image(pygame.sprite.Sprite):
                 self.is_selected = False
                 return
 
-    
+   
+
     def update(self):
         self.move_to()
 
