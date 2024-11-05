@@ -297,6 +297,7 @@ class Room:
 
     # 更新出牌权
     def order_change(self):
+        flag = False
         temp = self.current_order = (self.current_order + 1) % 4
         # 如果下一个玩家没有手牌 则跳过
         # 游戏的规则决定了这个while循环一定会结束 因为不可能至少有一个玩家有手牌
@@ -304,8 +305,11 @@ class Room:
             if temp == self.last_order:
                 # 如果上出完牌的玩家的牌一直没人要 那么下一个玩家就可以随便出牌
                 self.last_play = []
+                flag = True
             temp = (temp + 1) % 4
         self.current_order = temp
+        if flag:
+            self.last_order = self.current_order
 
     # 输入出完牌的玩家id 判断游戏是否结束
     def check_over(self, player_id:int) -> bool:

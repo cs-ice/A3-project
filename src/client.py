@@ -261,6 +261,14 @@ class Client:
                         print(e)
             elif command == "play":
                 self.sed_play()
+                self.pickedcard.judgeType()
+                self.pickedcard.calcValue()
+            elif command == "clear":
+                self.pickedcard.cards = []
+                self.pickedcard.judgeType()
+                self.pickedcard.calcValue()
+                print("当前选中的牌: ")
+                self.pickedcard.showcard()
             elif command == "quit":
                 self.quit()
                 break
