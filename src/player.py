@@ -5,11 +5,11 @@ screen = pygame.display.set_mode((1280,720))
 
 
 class Player:
-    def __init__(self, pos):
+    def __init__(self):
         pygame.font.init()
         # 图片区
         self.image = pygame.image.load('pic\CardBack.png')
-        self.pos = list(pos)
+        self.pos = None                                         # 位置等后续给出
         self.rect = self.image.get_rect(topleft=(self.pos))
 
         # 牌数量区
@@ -19,9 +19,18 @@ class Player:
 
         # 昵称区
         self.nickname_text = self.font.render('Nickname', True, (255, 255, 255))
+
+
+        # 状态区
+        self.is_ready = False
+        self.font.render('已准备', True, (255, 0, 0))
         
         
-        
+        # 设置玩家位置
+    def set_player_pos(self, pos):
+        self.pos = list(pos)
+
+
         # 设置剩余手牌数
     def set_card_numbers(self, num):
         self.number_text = self.font.render(f'{num}', True, (255, 0, 0))
