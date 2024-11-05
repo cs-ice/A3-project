@@ -179,20 +179,26 @@ class Game:
         pass
         # 准备界面
     def ready_scene(self):
-        WAIT_bg = Image('pic\waitbg.jpg', (1280,720),(0,0))
+        WAIT_bg = Image('pic\waitbg.jpg', (1280,720),(0,0))                     # 加载等待背景图片
         waiting = True
-        inputBox_room = InputBox(self.screen, 500, 400, 300, 40, self.font)
+
+        inputBox_room = InputBox(self.screen, 500, 400, 300, 40, self.font)     # 房间号 昵称 输入框
+        inputBox_name = InputBox(self.screen, 500, 320, 300, 40, self.font)
+        text_room = self.font.render('房间号:', True, (255, 255, 255))           # 文字渲染
+        text_name = self.font.render('昵称:', True, (255, 255, 255))
+        text_login = self.font.render('快速开始', True, (255, 255, 255))
+
+        button_login = Button((600, 500), text_login, 1)                        # 快速开始 按钮
+
         while waiting:
             for event in pygame.event.get():
-                inputBox_room.get_text(event)
+                inputBox_room.get_text(event)                                   # 文本框在读取事件获得输入
+                inputBox_name.get_text(event)
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
                 elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if inputBox_room.return_text() == 'nb':
-                        waiting = False
                     pass
-                    
                 elif event.type == pygame.MOUSEMOTION:
                     pass
                 elif event.type == pygame.MOUSEBUTTONUP:
@@ -200,15 +206,22 @@ class Game:
                 
                 
             
-            WAIT_bg.draw(self.screen)
-            inputBox_room.draw()
+            WAIT_bg.draw(self.screen)                                           # 绘制背景
+
+            self.screen.blit(text_room, (420, 405))                             # 绘制文字
+            self.screen.blit(text_name, (430, 325))
+            inputBox_room.draw()                                                # 绘制文本框
+            inputBox_name.draw()
+            if button_login.draw(self.screen):                                  # 绘制按钮并读取按钮输入
+                waiting = False
+                return inputBox_name.return_text(), inputBox_room.return_text() # 返回输入框内容
             self.Clock.tick(60)
 
             pygame.display.update()
 
 
     def run(self):
-        self.ready_scene()
+        print(self.ready_scene())
 
 
         self.handcards_to_images()
@@ -218,21 +231,19 @@ class Game:
         
         while True:
             for event in pygame.event.get():
-                print(999)
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     # self.handcards_images[10].on_desk = True
                     self.send_to_desk()
-                    print(999)
                     for index in self.handcards:
                         self.handcards_images[index].select_move(event)
                     self.update_handcard_rect()
                     
                 elif event.type == pygame.MOUSEMOTION:
                     self.handcards_images[11].set_end_pos(event.pos)
-                    print(event.pos)
+                    # print(event.pos)
                     for index in self.handcards:
                         self.handcards_images[index].select_move(event)
                 elif event.type == pygame.MOUSEBUTTONUP:
