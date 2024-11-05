@@ -1,3 +1,14 @@
+import os
+os.environ["SDL_IME_SHOW_UI"] = "1"    # 显示输入候选框 0是False 1是True
+import pygame
+from image import *
+from client import *
+from player import Player
+from button import Button
+from inputbox import InputBox
+import sys
+
+
 def get_name(card_id):              # 根据ID获取文件名称
     a = card_id // 4 + 4
     if a == 14:
@@ -43,25 +54,19 @@ BUTTON_SEND_HEIGHT, BUTTON_SEND_WIDTH = 140, 60
 
 
 
-import pygame
-from image import *
-from player import Player
-from button import Button
-from inputbox import InputBox
-import sys
-import os
-os.environ["SDL_IME_SHOW_UI"] = "1" # 显示输入候选框 0是False 1是True
-
-
-
-
-class Game:
+class Game(Client):                                 # 继承client
     def __init__(self):
+        super().__init__()
+
         pygame.init()
+        pygame.font.init()                          # 加载字体渲染
+        pygame.display.set_caption('A3')
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.font = pygame.font.SysFont('华文楷体', 20)
         self.Clock = pygame.time.Clock()
         self.all_card_images = {}                  # 整幅牌的图形 初始化
+        self.player_positions = [(1280-66-20, 250), (590, 20), (20, 250), (590, 620)] # 右上左下的玩家位置
+        # 关系到位置分配 用一个remove一个
 
         self.handcards = [x+9 for x in range(9)]                                     # 手牌的ID列表
         self.handcards_images = {}                 # 手牌的图像字典   格式{card_ID： Image}
@@ -75,6 +80,10 @@ class Game:
         self.myid = -1
         self.order = []                                     # 本地化的顺序 自己是第一号元素 [myid, rightid, upwardid, leftid]
         self.order_id_dict = []                             # {0:myid, 1:.....}
+
+
+        self.player_pool = {}                               # 玩家池 {id: Player}
+
     '''
     若手牌数量发生变化  更新手牌的位置
     '''
@@ -174,26 +183,47 @@ class Game:
         elif order == 3:     # 左方
             pass
 
+        
+        # 调用该方法 新建一个新玩家 并把该玩家加入 玩家池字典中 self.player_pool
+        # 适用于准备界面
+    def create_player(self, newplayer_id, newplayer_name):
+        if len(self.player_positions) == 0:
+            print('位置列表已空, 请检查错误\n')
+            return
+
+        newplayer = Player()
+                                                                    # 根据玩家的本地化order来设置位置
+        if newplayer_id == self.player_id:                          # 若新建的玩家是自己 坐下面
+            newplayer.set_player_pos(self.player_positions.pop()) 
+        else:
+                                                                    # 直接坐列表第一个位置即可
+            newplayer.set_player_pos(self.player_positions.pop(0))
+
+        newplayer.set_player_nickname(newplayer_name)               # 设置名字
+        self.player_pool[newplayer_id] = newplayer
 
 
-        pass
         # 准备界面
-    def ready_scene(self):
+    def waiting_scene(self):
         WAIT_bg = Image('pic\waitbg.jpg', (1280,720),(0,0))                     # 加载等待背景图片
         waiting = True
-
         inputBox_room = InputBox(self.screen, 500, 400, 300, 40, self.font)     # 房间号 昵称 输入框
         inputBox_name = InputBox(self.screen, 500, 320, 300, 40, self.font)
-        text_room = self.font.render('房间号:', True, (255, 255, 255))           # 文字渲染
-        text_name = self.font.render('昵称:', True, (255, 255, 255))
-        text_login = self.font.render('快速开始', True, (255, 255, 255))
 
-        button_login = Button((600, 500), text_login, 1)                        # 快速开始 按钮
+        font = pygame.font.SysFont('华文楷体', 30)
+        text_room = font.render('房间号:', True, (255, 255, 255))           # 文字渲染
+        text_name = font.render('昵称:', True, (255, 255, 255))
+        text_login = font.render('快速开始', True, (255, 255, 255))
+
+        button_login = Button((580, 500), text_login, 1)                        # 快速开始 按钮
 
         while waiting:
             for event in pygame.event.get():
+                
                 inputBox_room.get_text(event)                                   # 文本框在读取事件获得输入
                 inputBox_name.get_text(event)
+                if event.type == pygame.KEYDOWN:
+                    print(event.unicode)
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
@@ -208,8 +238,8 @@ class Game:
             
             WAIT_bg.draw(self.screen)                                           # 绘制背景
 
-            self.screen.blit(text_room, (420, 405))                             # 绘制文字
-            self.screen.blit(text_name, (430, 325))
+            self.screen.blit(text_room, (400, 400))                             # 绘制文字
+            self.screen.blit(text_name, (430, 320))
             inputBox_room.draw()                                                # 绘制文本框
             inputBox_name.draw()
             if button_login.draw(self.screen):                                  # 绘制按钮并读取按钮输入
@@ -219,9 +249,45 @@ class Game:
 
             pygame.display.update()
 
+    def ready_scene(self):
+        ready = True
+        READY_bg = Image('pic\gamebg.png', (1280,720),(0,0))
+        font = pygame.font.SysFont('华文楷体', 40)
+        text_ready = font.render('准备', True, (255,255,255))
+        button_ready = Button((600, 500),text_ready , 1) 
+
+        while ready:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    pass
+                elif event.type == pygame.MOUSEMOTION:
+                    pass
+                elif event.type == pygame.MOUSEBUTTONUP:
+                    pass
+            READY_bg.draw(self.screen)
+            if button_ready.draw(self.screen):
+                pass
+
+            pygame.display.update()
+
+
+
 
     def run(self):
-        print(self.ready_scene())
+        i = 0
+        while True:
+            name, room = self.waiting_scene()
+            room_id = int(room)
+            if self.sed_room_and_name(room_id, name):
+                break
+            i+=1
+
+
+        self.ready_scene()
+
 
 
         self.handcards_to_images()
