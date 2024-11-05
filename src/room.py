@@ -303,7 +303,7 @@ class Room:
         while self.carddict[self.order_to_id(temp)] == []:
             if temp == self.last_order:
                 # 如果上出完牌的玩家的牌一直没人要 那么下一个玩家就可以随便出牌
-                self.last_act = []
+                self.last_play = []
             temp = (temp + 1) % 4
         self.current_order = temp
 
