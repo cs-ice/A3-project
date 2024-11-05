@@ -68,7 +68,7 @@ class Room:
                 self.sed_order()
                 print("所有玩家准备完毕 发送出牌顺序以及初始出牌权")
                 self.sed_begin_cards()
-                self.sed_action(self.current_order, [], [], self.last_order)
+                self.sed_action(self.current_order, [],[-1], self.current_order)
                 self.start_trun()
                 for i in range(4):
                     self.is_ready[i] = False
@@ -251,7 +251,7 @@ class Room:
     def sed_action(self, curr_act_order:int, last_act: list[int], need_react_cards: list[int], last_act_order:int):
         # curr_act_player是当前出牌玩家
         # last_act是上家出的牌如果是[] 则表示上家pass 
-        # need_react_cards当前需要应对的牌 如果是[] 则表示这是第一次出牌 需要判断是否有方块4
+        # need_react_cards当前需要应对的牌 如果是[-1] 则表示这是第一次出牌 需要判断是否有方块4
         # last_act_player是上家出牌玩家 如果是玩家自己 则此时玩家可以随便出牌
         self.broadcast_message(Message('action', [curr_act_order, last_act, need_react_cards, last_act_order]))
 
@@ -301,6 +301,9 @@ class Room:
         # 如果下一个玩家没有手牌 则跳过
         # 游戏的规则决定了这个while循环一定会结束 因为不可能至少有一个玩家有手牌
         while self.carddict[self.order_to_id(temp)] == []:
+            if temp == self.last_order:
+                # 如果上出完牌的玩家的牌一直没人要 那么下一个玩家就可以随便出牌
+                self.last_act = []
             temp = (temp + 1) % 4
         self.current_order = temp
 

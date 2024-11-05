@@ -90,8 +90,8 @@ class Client:
    
     # 尝试进入房间时 才和服务器连接
     def sed_room_and_name(self, room_id: int, username: str) ->bool:
-        #serverIP = "8.217.57.241"       # 服务器ip地址
-        serverIP = "127.0.0.1"           # 测试用本地ip
+        serverIP = "8.217.57.241"       # 服务器ip地址
+        #serverIP = "127.0.0.1"           # 测试用本地ip
         serverPort = 12345
         self.clientSocket.connect((serverIP, serverPort))
         
